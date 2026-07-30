@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Penny工作台">
+<link rel="icon" type="image/png" href="panda_avatar.png">
+<link rel="apple-touch-icon" href="panda_avatar.png">
+<title>Penny 的工作台</title>
+<style>
+:root {
+  --primary: #7A9A5E; --primary-light: #9BB883; --primary-dark: #5A7A3E;
+  --accent: #D4A574; --accent-light: #E8CAA0;
+  --bg: #F7F9F4; --card-bg: #FFFFFF; --text: #2D2D2D;
+  --text-light: #999; --text-mid: #666; --border: #E2E8DD;
+  --success: #52A775; --warning: #E8A838; --danger: #E07060; --info: #6B9E8A;
+  --radius: 12px; --shadow: 0 1px 10px rgba(122,154,94,0.08); --shadow-lg: 0 4px 24px rgba(0,0,0,0.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,"Microsoft YaHei","PingFang SC",sans-serif; background:var(--bg); color:var(--text); font-size:14px; line-height:1.6; }
+button { cursor:pointer; font-family:inherit; border:none; }
+input,select,textarea { font-family:inherit; font-size:14px; }
+a { color:var(--primary); text-decoration:none; }
+
+.app { display:flex; flex-direction:column; min-height:100vh; }
+
+/* 顶部栏 */
+.topbar {
+  background:var(--card-bg); padding:12px 16px; display:flex;
+  justify-content:space-between; align-items:center;
+  border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50;
+}
+.topbar-left { display:flex; align-items:center; gap:8px; }
+.topbar-logo { width:30px; height:30px; border-radius:50%; object-fit:cover; }
+.topbar-title { font-size:17px; font-weight:700; color:var(--primary); }
+.topbar-date { color:var(--text-light); font-size:12px; }
+.btn-export, .btn-import {
+  padding:6px 14px; border-radius:8px; font-size:13px; font-weight:600;
+  cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px;
+  background:#fff; border:1.5px solid var(--border);
+}
+.btn-export { color:var(--primary); }
+.btn-export:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+.btn-import { color:var(--accent); }
+.btn-import:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+/* 底部导航 */
+.bottom-nav {
+  position:fixed; bottom:0; left:0; right:0; z-index:100;
+  background:#fff; border-top:1px solid var(--border);
+  display:flex; justify-content:space-around; align-items:center;
+  padding:10px 0; padding-bottom:max(14px, env(safe-area-inset-bottom));
+  box-shadow:0 -2px 16px rgba(0,0,0,0.06);
+}
+.nav-item {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:6px 2px; cursor:pointer; transition:all 0.2s;
+  color:var(--text-light); font-size:10px; font-weight:400;
+  position:relative; max-width:72px;
+}
+.nav-item .nav-icon { font-size:20px; line-height:1; transition:all 0.2s; }
+.nav-item .nav-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.nav-item.active { color:var(--primary); font-weight:600; }
+.nav-item.active::before {
+  content:''; position:absolute; top:0; left:20%; right:20%; height:2.5px;
+  background:var(--primary); border-radius:0 0 3px 3px;
+}
+
+/* 左侧弹出导航 */
+.sidebar-mask { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.35); z-index:150; }
+.sidebar-mask.show { display:block; }
+.sidebar {
+  position:fixed; top:0;left:-260px; bottom:0; z-index:151;
+  width:260px; max-width:80vw; background:#fff; box-shadow:2px 0 20px rgba(0,0,0,0.1);
+  transition:left 0.25s ease; display:flex; flex-direction:column;
+}
+.sidebar.open { left:0; }
+.sidebar-header {
+  padding:24px 20px 16px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+}
+.sidebar-avatar { width:44px; height:44px; border-radius:50%; object-fit:cover; }
+.sidebar-name { font-size:17px; font-weight:700; color:var(--primary); }
+.sidebar-menu { flex:1; overflow-y:auto; padding:8px 0; }
+.sidebar-item {
+  display:flex; align-items:center; gap:12px;
+  padding:14px 24px; cursor:pointer; transition:background 0.15s;
+  color:var(--text-mid); font-size:15px;
+}
+.sidebar-item:hover { background:#f8f6f3; }
+.sidebar-item.active { background:#EDF3E8; color:var(--primary); font-weight:600; }
+.sidebar-item .s-icon { font-size:20px; width:28px; text-align:center; }
+.sidebar-item .s-label { flex:1; }
+.sidebar-item .s-badge { font-size:11px; color:var(--text-light); }
+.avatar-btn { background:none; border:none; padding:0; cursor:pointer; display:flex; align-items:center; }
+
+/* 内容区 */
+.main { flex:1; padding-bottom:85px; }
+.content { padding:16px 16px 8px; max-width:1200px; margin:0 auto; }
+
+.section { display:none; }
+.section.active { display:block; }
+
+.card { background:var(--card-bg); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); margin-bottom:20px; }
+.card-title { font-size:16px; font-weight:600; color:var(--text); margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; }
+
+.btn { padding:8px 18px; border-radius:8px; font-size:13px; font-weight:500; transition:all 0.2s; display:inline-flex; align-items:center; gap:6px; }
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-primary:hover { background:var(--primary-dark); }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text-mid); }
+.btn-outline:hover { border-color:var(--primary); color:var(--primary); }
+.btn-danger { background:#fff0ee; color:var(--danger); }
+.btn-danger:hover { background:#ffe0db; }
+.btn-sm { padding:5px 12px; font-size:12px; }
+.btn-success { background:#e8f5ee; color:var(--success); }
+.btn-success:hover { background:#d4ecd9; }
+.btn-vine { background:#EDF3E8; color:var(--primary); }
+.btn-vine:hover { background:#DCE8D4; }
+
+.form-row { display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.form-group { flex:1; min-width:120px; }
+.form-group label { display:block; font-size:12px; color:var(--text-mid); margin-bottom:4px; }
+.form-group input,.form-group select,.form-group textarea {
+  width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px;
+  background:#fff; outline:none; transition:border 0.2s;
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus { border-color:var(--primary); }
+.form-group textarea { resize:vertical; min-height:60px; }
+
+.modal-mask { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.4); z-index:200; justify-content:center; align-items:flex-start; padding-top:60px; }
+.modal-mask.show { display:flex; }
+.modal { background:#fff; border-radius:var(--radius); width:600px; max-width:94%; max-height:80vh; overflow-y:auto; box-shadow:var(--shadow-lg); }
+.modal-header { padding:18px 24px; font-size:16px; font-weight:600; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.modal-close { font-size:22px; color:var(--text-light); cursor:pointer; background:none; }
+.modal-body { padding:20px 24px; }
+.modal-footer { padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
+
+table { width:100%; border-collapse:collapse; }
+th { text-align:left; padding:10px 12px; font-size:12px; color:var(--text-mid); border-bottom:2px solid var(--border); white-space:nowrap; }
+td { padding:10px 12px; border-bottom:1px solid var(--border); font-size:13px; }
+tr:hover td { background:#faf9f7; }
+
+.tag { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:500; }
+.tag-consult { background:#FFF3E0; color:#E89020; }
+.tag-enrolled { background:#E8F5EE; color:var(--success); }
+.tag-pending { background:#F0F0F0; color:var(--text-mid); }
+
+.stat-grid { display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+.stat-card { background:var(--card-bg); border-radius:var(--radius); padding:16px 20px; box-shadow:var(--shadow); flex:1; min-width:150px; }
+.stat-card .label { font-size:12px; color:var(--text-light); margin-bottom:6px; }
+.stat-card .value { font-size:22px; font-weight:700; }
+.stat-card .value.primary { color:var(--primary); }
+
+.empty { text-align:center; padding:40px 20px; color:var(--text-light); }
+.empty-icon { font-size:40px; margin-bottom:10px; }
+
+.icon-btn { background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:0.5; transition:opacity 0.2s; }
+.icon-btn:hover { opacity:1; }
+
+/* 每日计划 */
+.todo-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; transition:background 0.2s; }
+.todo-item:hover { background:#faf9f7; }
+.todo-check { width:20px;height:20px; border:2px solid var(--border); border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.2s; }
+.todo-check.done { background:var(--success); border-color:var(--success); }
+.todo-check.done::after { content:"✓"; color:#fff; font-size:13px; }
+.todo-text { flex:1; }
+.todo-item.done .todo-text { text-decoration:line-through; color:var(--text-light); }
+.todo-del { color:var(--text-light); font-size:14px; opacity:0; transition:opacity 0.2s; }
+.todo-item:hover .todo-del { opacity:0.6; }
+
+/* 英语学习 - 闪卡 */
+.vocab-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+.flashcard {
+  background:var(--card-bg); border-radius:10px; padding:16px 12px;
+  box-shadow:var(--shadow); cursor:pointer; transition:all 0.25s;
+  text-align:center; min-height:90px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; user-select:none;
+  border:2px solid transparent;
+}
+.flashcard:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,0.1); }
+.flashcard.flipped { border-color:var(--primary); background:#FAFBF7; }
+.flashcard.learned { opacity:0.5; border-color:var(--success); }
+.flashcard .fc-word { font-weight:700; font-size:14px; color:var(--text); transition:all 0.2s; }
+.flashcard.flipped .fc-word { color:var(--primary); }
+.flashcard .fc-reveal { display:none; font-size:12px; color:var(--text-mid); margin-top:6px; line-height:1.6; }
+.flashcard.flipped .fc-reveal { display:block; }
+.flashcard .fc-pron { color:var(--accent); font-size:12px; font-style:italic; }
+.flashcard .fc-meaning { font-weight:600; color:var(--primary); font-size:13px; margin-top:2px; }
+.flashcard .fc-example { color:var(--text-light); font-size:11px; margin-top:2px; }
+.flashcard .fc-tags { display:flex; gap:4px; margin-top:6px; justify-content:center; }
+.flashcard .fc-tag { font-size:10px; padding:2px 6px; border-radius:8px; }
+.flashcard .fc-tag.travel { background:#f0f4ff; color:#5B8DBE; }
+.flashcard .fc-tag.wine { background:#EDF3E8; color:var(--primary); }
+.flashcard .fc-tag.learned-tag { background:#E8F5EE; color:var(--success); }
+
+/* 日历 */
+.calendar { background:var(--card-bg); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); }
+.cal-toggle {
+  display:inline-flex; align-items:center; gap:6px; padding:6px 14px;
+  background:var(--card-bg); border-radius:8px; box-shadow:var(--shadow);
+  cursor:pointer; font-size:13px; color:var(--text-mid); margin-bottom:12px;
+  user-select:none; transition:all 0.2s;
+}
+.cal-toggle:hover { background:#EDF3E8; color:var(--primary); }
+.cal-toggle-icon { font-size:15px; }
+.cal-toggle-arrow { font-size:11px; transition:transform 0.2s; }
+.cal-toggle-arrow.open { transform:rotate(180deg); }
+.cal-wrapper { margin-bottom:16px; }
+.calendar-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.calendar-header .cal-month { font-size:15px; font-weight:700; color:var(--primary); }
+.calendar-header button { background:none; border:1px solid var(--border); border-radius:6px; padding:4px 10px; cursor:pointer; color:var(--text-mid); font-size:13px; }
+.calendar-header button:hover { color:var(--primary); border-color:var(--primary); }
+.calendar-weekdays { display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:11px; color:var(--text-light); margin-bottom:6px; padding:0 2px; }
+.calendar-days { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.calendar-day {
+  aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border-radius:8px; cursor:pointer; font-size:13px; transition:all 0.15s; position:relative;
+  color:var(--text); min-height:36px;
+}
+.calendar-day:hover { background:#f5f7f2; }
+.calendar-day.other-month { color:#ddd; cursor:default; }
+.calendar-day.today { background:var(--primary); color:#fff; font-weight:700; }
+.calendar-day.today:hover { background:var(--primary-dark); }
+.calendar-day.active-date { box-shadow:inset 0 0 0 2px var(--accent); }
+.calendar-day.has-data::after {
+  content:''; width:5px; height:5px; border-radius:50%; background:var(--accent);
+  position:absolute; bottom:4px; left:50%; transform:translateX(-50%);
+}
+.calendar-day.today.has-data::after { background:#fff; }
+
+@media (max-width:480px) {
+  .vocab-grid { grid-template-columns:repeat(2,1fr); }
+  .calendar-day { font-size:11px; min-height:30px; }
+}
+
+.scene-card { background:var(--card-bg); border-radius:var(--radius); padding:16px 20px; box-shadow:var(--shadow); margin-bottom:12px; }
+.scene-card h4 { color:var(--primary); margin-bottom:10px; font-size:15px; }
+.scene-card .dialogue { background:#f9f8f6; border-radius:8px; padding:12px; margin:8px 0; }
+.scene-card .dialogue p { margin-bottom:6px; }
+.scene-card .dialogue .speaker { font-weight:600; color:var(--primary); }
+
+/* 资金管理 */
+.asset-account { background:var(--card-bg); border-radius:10px; padding:14px 18px; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.asset-account .acct-info { display:flex; align-items:center; gap:10px; }
+.asset-account .acct-icon { font-size:24px; }
+.asset-account .acct-name { font-weight:600; }
+.asset-account .acct-type { font-size:12px; color:var(--text-light); }
+.asset-account .acct-amount { font-weight:700; font-size:16px; }
+.asset-account .acct-change { font-size:12px; margin-left:8px; }
+.asset-account .acct-time { font-size:11px; color:var(--text-light); }
+
+.fund-row td { font-size:13px; }
+.profit-positive { color:var(--success); font-weight:600; }
+.profit-negative { color:var(--danger); font-weight:600; }
+
+/* 日记 */
+.diary-entry { background:var(--card-bg); border-radius:var(--radius); padding:16px 20px; box-shadow:var(--shadow); margin-bottom:12px; border-left:4px solid var(--primary); position:relative; }
+.diary-entry .diary-date { font-size:13px; color:var(--primary); font-weight:600; margin-bottom:8px; }
+.diary-entry .diary-delete { position:absolute; right:16px; top:16px; font-size:16px; cursor:pointer; opacity:0; transition:opacity 0.2s; background:none; border:none; color:var(--danger); }
+.diary-entry:hover .diary-delete { opacity:0.7; }
+.diary-entry .diary-delete:hover { opacity:1; }
+
+/* 文案备忘 */
+.copy-card { background:var(--card-bg); border-radius:var(--radius); padding:16px 20px; box-shadow:var(--shadow); margin-bottom:12px; border-left:4px solid var(--warning); transition:opacity 0.3s; }
+.copy-card.published { border-left-color:var(--border); opacity:0.55; }
+.copy-card.published .copy-content { color:var(--text-mid); }
+.copy-card .copy-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.copy-card .copy-type { font-size:12px; color:var(--accent); font-weight:600; }
+.copy-card .copy-content { white-space:pre-wrap; font-size:14px; line-height:1.7; }
+.copy-card .copy-actions { margin-top:10px; display:flex; gap:8px; }
+
+/* 学员 */
+.student-card { background:var(--card-bg); border-radius:var(--radius); padding:16px 20px; box-shadow:var(--shadow); margin-bottom:12px; }
+.student-card .stu-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.student-card .stu-name { font-size:16px; font-weight:700; }
+.student-card .stu-info { display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:var(--text-mid); margin-bottom:8px; }
+.student-card .stu-info span { display:flex; align-items:center; gap:4px; }
+.student-card .stu-notes { font-size:13px; color:var(--text-mid); background:#f9f8f6; padding:8px 12px; border-radius:8px; margin-top:8px; }
+.student-card .stu-actions { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+
+.filter-bar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.filter-btn { padding:6px 14px; border-radius:20px; font-size:13px; background:#fff; border:1px solid var(--border); color:var(--text-mid); cursor:pointer; transition:all 0.2s; }
+.filter-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+/* 销售表格可滚动 */
+.sales-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.sales-scroll table { min-width:1000px; }
+
+@media (max-width:768px) {
+  .topbar { padding:10px 12px; }
+  .topbar-date { display:none; }
+  .topbar-title { font-size:15px; }
+  .content { padding:12px 12px 8px; }
+  .form-row { flex-direction:column; }
+  .form-group { min-width:100%; }
+  .nav-item .nav-icon { font-size:18px; }
+  .nav-item .nav-label { font-size:9px; }
+}
+</style>
+</head>
+<body>
+<div id="error-display" style="display:none;background:#c00;color:#fff;padding:12px 16px;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:99999;"></div>
+<div class="app">
+
+  <div class="bottom-nav">
+    <div class="nav-item active" data-section="plan">
+      <span class="nav-icon">✅</span><span class="nav-label">计划</span>
+    </div>
+    <div class="nav-item" data-section="english">
+      <span class="nav-icon">📖</span><span class="nav-label">英语</span>
+    </div>
+    <div class="nav-item" data-section="diary">
+      <span class="nav-icon">📝</span><span class="nav-label">日记</span>
+    </div>
+    <div class="nav-item" data-section="sales">
+      <span class="nav-icon">📊</span><span class="nav-label">销售</span>
+    </div>
+    <div class="nav-item" data-section="students">
+      <span class="nav-icon">🎓</span><span class="nav-label">学员</span>
+    </div>
+    <div class="nav-item" data-section="copywriting">
+      <span class="nav-icon">✍️</span><span class="nav-label">文案</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="avatar-btn" onclick="toggleSidebar()" title="菜单">
+          <img class="topbar-logo" src="panda_avatar.png" alt="Penny">
+        </button>
+        <span class="topbar-title" id="pageTitle">每日计划</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="topbar-date" id="topDate"></span>
+        <div class="topbar-actions">
+          <button class="btn-export" onclick="exportAllData()">↑ 导出</button>
+          <button class="btn-import" onclick="document.getElementById('importFile').click()">↓ 导入</button>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importAllData(event)">
+
+    <!-- 左侧弹出导航 -->
+    <div class="sidebar-mask" id="sidebarMask" onclick="closeSidebar()"></div>
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <img class="sidebar-avatar" src="panda_avatar.png" alt="Penny">
+        <span class="sidebar-name">Penny</span>
+      </div>
+      <div class="sidebar-menu">
+        <div class="sidebar-item" data-section="plan" >
+          <span class="s-icon">✅</span><span class="s-label">每日计划</span>
+        </div>
+        <div class="sidebar-item" data-section="english" >
+          <span class="s-icon">📖</span><span class="s-label">英语学习</span>
+        </div>
+        <div class="sidebar-item" data-section="diary" >
+          <span class="s-icon">📝</span><span class="s-label">日记</span>
+        </div>
+        <div class="sidebar-item" data-section="sales" >
+          <span class="s-icon">📊</span><span class="s-label">销售记录</span>
+        </div>
+        <div class="sidebar-item" data-section="students" >
+          <span class="s-icon">🎓</span><span class="s-label">学员招生</span>
+        </div>
+        <div class="sidebar-item" data-section="copywriting" >
+          <span class="s-icon">✍️</span><span class="s-label">文案备忘</span>
+        </div>
+        <div class="sidebar-item" data-section="finance" >
+          <span class="s-icon">💰</span><span class="s-label">资金规划</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- 1. 每日计划 -->
+      <div class="section active" id="section-plan">
+        <div class="cal-toggle" onclick="toggleCalendar('planCalWrap')">
+          <span class="cal-toggle-icon">📅</span> 查看日历 <span class="cal-toggle-arrow" id="planCalArrow">▾</span>
+        </div>
+        <div class="cal-wrapper" id="planCalWrap" style="display:none;">
+          <div id="planCalendar" class="calendar"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span id="planDateTitle">今日计划</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-outline btn-sm" onclick="changePlanDate(-1)">‹ 前一天</button>
+              <button class="btn btn-outline btn-sm" onclick="changePlanDate(0)">今天</button>
+              <button class="btn btn-outline btn-sm" onclick="changePlanDate(1)">后一天 ›</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <input type="text" id="todoInput" placeholder="输入待办事项，回车添加..." style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;outline:none;" onkeydown="if(event.key==='Enter')addTodo()">
+            <button class="btn btn-primary" onclick="addTodo()">添加</button>
+          </div>
+          <div id="todoList"></div>
+        </div>
+      </div>
+
+      <!-- 2. 英语学习 -->
+      <div class="section" id="section-english">
+        <div class="card">
+          <div class="card-title"><span>📖 每日词汇</span><span style="font-size:12px;color:var(--text-light);">点击卡片查看释义</span></div>
+          <div class="vocab-grid" id="vocabGrid"></div>
+        </div>
+      </div>
+
+      <!-- 3. 日记 -->
+      <div class="section" id="section-diary">
+        <div class="cal-toggle" onclick="toggleCalendar('diaryCalWrap')">
+          <span class="cal-toggle-icon">📅</span> 查看日历 <span class="cal-toggle-arrow" id="diaryCalArrow">▾</span>
+        </div>
+        <div class="cal-wrapper" id="diaryCalWrap" style="display:none;">
+          <div id="diaryCalendar" class="calendar"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>写日记</span><span style="font-size:13px;color:var(--text-light)" id="diaryDateLabel"></span></div>
+          <div style="display:flex;gap:10px;margin-bottom:12px;">
+            <select id="diaryMood" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;">
+              <option value="">心情</option>
+              <option value="😊">😊 开心</option><option value="😌">😌 平静</option><option value="🤔">🤔 思考</option>
+              <option value="😴">😴 疲惫</option><option value="🥳">🥳 兴奋</option><option value="😢">😢 难过</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="changeDiaryDate(-1)">‹</button>
+            <button class="btn btn-outline btn-sm" onclick="changeDiaryDate(0)">今天</button>
+            <button class="btn btn-outline btn-sm" onclick="changeDiaryDate(1)">›</button>
+          </div>
+          <textarea id="diaryText" placeholder="今天发生了什么..." style="width:100%;min-height:200px;padding:14px;border:1px solid var(--border);border-radius:8px;resize:vertical;outline:none;font-size:14px;line-height:1.8;" oninput="autoSaveDiary()"></textarea>
+          <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+            <span id="diarySaveHint" style="font-size:12px;color:var(--text-light);"></span>
+            <button class="btn btn-primary btn-sm" onclick="saveDiary()">保存日记</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>历史日记</span></div>
+          <div id="diaryHistory"></div>
+        </div>
+      </div>
+
+      <!-- 4. 销售记录 -->
+      <div class="section" id="section-sales">
+        <div class="card">
+          <div class="card-title">
+            <span>销售明细</span>
+            <button class="btn btn-primary btn-sm" onclick="openSaleModal()">+ 添加销售记录</button>
+          </div>
+          <div class="sales-scroll" id="salesTableWrap"></div>
+        </div>
+      </div>
+
+      <!-- 5. 学员招生 -->
+      <div class="section" id="section-students">
+        <div class="card">
+          <div class="card-title">
+            <span>学员列表</span>
+            <button class="btn btn-primary btn-sm" onclick="openStudentModal()">+ 添加学员</button>
+          </div>
+          <div class="filter-bar">
+            <button class="filter-btn active" data-sfilter="all" onclick="setStudentFilter('all')">全部</button>
+            <button class="filter-btn" data-sfilter="UAWS初级" onclick="setStudentFilter('UAWS初级')">UAWS初级</button>
+            <button class="filter-btn" data-sfilter="WSET二级" onclick="setStudentFilter('WSET二级')">WSET二级</button>
+            <button class="filter-btn" data-sfilter="WSET三级" onclick="setStudentFilter('WSET三级')">WSET三级</button>
+          </div>
+          <div id="studentList"></div>
+        </div>
+      </div>
+
+      <!-- 6. 资金规划 -->
+      <div class="section" id="section-finance">
+        <div class="stat-grid" id="financeStats"></div>
+        <div class="card">
+          <div class="card-title">
+            <span>资产账户</span>
+            <button class="btn btn-primary btn-sm" onclick="openAccountModal()">+ 添加账户</button>
+          </div>
+          <div id="accountList"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>基金盈亏追踪</span>
+            <button class="btn btn-primary btn-sm" onclick="openFundModal()">+ 添加基金</button>
+          </div>
+          <div id="fundTableWrap"></div>
+        </div>
+      </div>
+
+      <!-- 7. 文案备忘 -->
+      <div class="section" id="section-copywriting">
+        <div class="card">
+          <div class="card-title">
+            <span>📌 待发布文案</span>
+            <button class="btn btn-primary btn-sm" onclick="openCopyModal()">+ 新建文案</button>
+          </div>
+          <div id="copyUnpublished"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>📂 已发布文案</span></div>
+          <div id="copyPublished"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 模态框 -->
+<div class="modal-mask" id="modalMask">
+  <div class="modal" id="modalBox">
+    <div class="modal-header"><span id="modalTitle"></span><button class="modal-close" onclick="closeModal()">&times;</button></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<script>
+// 调试：捕获 JS 错误并显示在页面上
+window.onerror=function(msg,url,line){
+  var el=document.getElementById('error-display');
+  if(el){el.style.display='block';el.textContent='JS错误: '+msg+' (行'+line+')';}
+  console.error('JS Error:',msg,'at line',line);
+};
+console.log('[DEBUG] Script started');
+// ==================== 工具函数 ====================
+const DB = {
+  get(key, def) { try { const v=localStorage.getItem('pw_'+key); return v?JSON.parse(v):def; } catch { return def; } },
+  set(key, val) { localStorage.setItem('pw_'+key, JSON.stringify(val)); }
+};
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function fmtDate(d) { if(!d) return ''; const dt=new Date(d); return `${dt.getMonth()+1}月${dt.getDate()}日`; }
+function fmtMoney(n) { return '¥'+Number(n||0).toLocaleString('zh-CN',{minimumFractionDigits:0,maximumFractionDigits:2}); }
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+// ==================== 全局状态变量（必须在所有函数之前声明，避免TDZ） ====================
+let todoData=DB.get('todos',{}), currentPlanDate=todayStr();
+let planCalendarDate=todayStr(), diaryCalendarDate=todayStr();
+let planCalMonth=new Date().getFullYear()*100+(new Date().getMonth()+1);
+let diaryCalMonth=new Date().getFullYear()*100+(new Date().getMonth()+1);
+let vocabProgress = DB.get('vocabProgress', { dailyAssignments:{}, learnedWords:[] });
+let flippedCards = {};
+let diaryData=DB.get('diary',{}), currentDiaryDate=todayStr(), diaryTimer=null;
+let salesData=DB.get('sales',[]);
+let studentData=DB.get('students',[]), studentFilter='all';
+let accountData=DB.get('accounts',[]), fundData=DB.get('funds',[]);
+let copyData=DB.get('copywriting',[]);
+
+// ==================== 导航 ====================
+const sectionTitles = {
+  plan:'每日计划', english:'英语学习', diary:'日记',
+  sales:'销售记录', students:'学员招生', finance:'资金规划', copywriting:'文案备忘'
+};
+// 切换模块
+function switchToSection(sec) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('section-'+sec).classList.add('active');
+  document.getElementById('pageTitle').textContent=sectionTitles[sec];
+  syncNavActive(sec);
+  if(sec==='plan') { renderTodos(); }
+  if(sec==='english') renderVocab();
+  if(sec==='diary') { renderDiary(); }
+  if(sec==='sales') renderSales();
+  if(sec==='students') renderStudents();
+  if(sec==='finance') renderFinance();
+  if(sec==='copywriting') renderCopywriting();
+}
+function syncNavActive(sec) {
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  var b=document.querySelector('.nav-item[data-section="'+sec+'"]');
+  if(b) b.classList.add('active');
+  document.querySelectorAll('.sidebar-item').forEach(n=>n.classList.remove('active'));
+  var s=document.querySelector('.sidebar-item[data-section="'+sec+'"]');
+  if(s) s.classList.add('active');
+}
+document.querySelectorAll('.nav-item').forEach(function(item){
+  item.addEventListener('click',function(){switchToSection(item.dataset.section);});
+});
+document.querySelectorAll('.sidebar-item').forEach(function(item){
+  item.addEventListener('click',function(){switchToSection(item.dataset.section);closeSidebar();});
+});
+function toggleSidebar(){
+  var sb=document.getElementById('sidebar'),mask=document.getElementById('sidebarMask');
+  if(sb.classList.contains('open')){closeSidebar();}
+  else{sb.classList.add('open');mask.classList.add('show');}
+}
+function toggleCalendar(wrapId) {
+  const wrap = document.getElementById(wrapId);
+  const arrowId = wrapId === 'planCalWrap' ? 'planCalArrow' : 'diaryCalArrow';
+  const arrow = document.getElementById(arrowId);
+  if (wrap.style.display === 'none') {
+    wrap.style.display = 'block';
+    arrow.classList.add('open');
+    if (wrapId === 'planCalWrap') renderPlanCalendar(); else renderDiaryCalendar();
+  } else {
+    wrap.style.display = 'none';
+    arrow.classList.remove('open');
+  }
+}
+
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarMask').classList.remove('show');}
+
+syncNavActive('plan');
+renderTodos();
+function updateTopDate() {
+  const d=new Date(), days=['日','一','二','三','四','五','六'];
+  document.getElementById('topDate').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 星期${days[d.getDay()]}`;
+}
+updateTopDate();
+
+// 模态框
+function openModal(title,bodyHTML,footerHTML) {
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').innerHTML=bodyHTML;
+  document.getElementById('modalFooter').innerHTML=footerHTML;
+  document.getElementById('modalMask').classList.add('show');
+}
+function closeModal() { document.getElementById('modalMask').classList.remove('show'); }
+document.getElementById('modalMask').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+
+// ==================== 1. 每日计划 ====================
+function saveTodos() { DB.set('todos',todoData); renderPlanCalendar(); }
+function changePlanDate(dir) {
+  if(dir===0) currentPlanDate=todayStr();
+  else { const d=new Date(currentPlanDate); d.setDate(d.getDate()+dir); currentPlanDate=d.toISOString().slice(0,10); }
+  planCalendarDate=currentPlanDate;
+  const y=parseInt(currentPlanDate.slice(0,4)), m=parseInt(currentPlanDate.slice(5,7));
+  planCalMonth=y*100+m;
+  renderPlanCalendar();
+  renderTodos();
+}
+function addTodo() {
+  const text=document.getElementById('todoInput').value.trim();
+  if(!text) return;
+  if(!todoData[currentPlanDate]) todoData[currentPlanDate]=[];
+  todoData[currentPlanDate].push({id:uid(),text,done:false});
+  document.getElementById('todoInput').value='';
+  saveTodos(); renderTodos();
+}
+function toggleTodo(id) {
+  const list=todoData[currentPlanDate]||[];
+  const t=list.find(x=>x.id===id);
+  if(t){t.done=!t.done;saveTodos();renderTodos();}
+}
+function deleteTodo(id) {
+  todoData[currentPlanDate]=(todoData[currentPlanDate]||[]).filter(t=>t.id!==id);
+  saveTodos(); renderTodos();
+}
+function renderTodos() {
+  const isToday=currentPlanDate===todayStr();
+  document.getElementById('planDateTitle').textContent=isToday?'今日计划':fmtDate(currentPlanDate)+' 计划';
+  const list=todoData[currentPlanDate]||[];
+  if(list.length===0) {
+    document.getElementById('todoList').innerHTML='<div class="empty"><div class="empty-icon">✅</div>今天还没有计划，添加一些待办吧</div>';
+    return;
+  }
+  document.getElementById('todoList').innerHTML=list.map(t=>`
+    <div class="todo-item ${t.done?'done':''}">
+      <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${t.id}')"></div>
+      <span class="todo-text">${t.text}</span>
+      <button class="todo-del" onclick="deleteTodo('${t.id}')">✕</button>
+    </div>`).join('');
+}
+
+// ==================== 2. 英语学习 ====================
+// 内置词汇库
+const VOCAB_LIBRARY = [
+  // 旅游英语 60 词
+  {word:'Boarding pass',meaning:'登机牌',example:'Please have your boarding pass ready.',type:'travel'},
+  {word:'Departure',meaning:'出发',example:'Our departure time is 3 PM.',type:'travel'},
+  {word:'Arrival',meaning:'到达',example:'The arrival gate is B12.',type:'travel'},
+  {word:'Layover',meaning:'中转',example:'We have a 2-hour layover in Dubai.',type:'travel'},
+  {word:'Customs',meaning:'海关',example:'You need to declare at customs.',type:'travel'},
+  {word:'Currency exchange',meaning:'货币兑换',example:'Where can I find a currency exchange?',type:'travel'},
+  {word:'Check-in',meaning:'值机',example:'Online check-in saves time.',type:'travel'},
+  {word:'Carry-on luggage',meaning:'随身行李',example:'Your carry-on must fit in the overhead bin.',type:'travel'},
+  {word:'Itinerary',meaning:'行程',example:'Here is your travel itinerary.',type:'travel'},
+  {word:'Souvenir',meaning:'纪念品',example:'I bought some souvenirs at the market.',type:'travel'},
+  {word:'Accommodation',meaning:'住宿',example:'I booked accommodation near the beach.',type:'travel'},
+  {word:'Reservation',meaning:'预订',example:'I have a reservation under the name Penny.',type:'travel'},
+  {word:'Checkout',meaning:'退房',example:'Checkout time is 11 AM.',type:'travel'},
+  {word:'Tip',meaning:'小费',example:'A 15% tip is standard here.',type:'travel'},
+  {word:'Receipt',meaning:'收据',example:'Could I get a receipt, please?',type:'travel'},
+  {word:'Passport',meaning:'护照',example:'May I see your passport, please?',type:'travel'},
+  {word:'Visa',meaning:'签证',example:'Do I need a visa to enter?',type:'travel'},
+  {word:'Gate',meaning:'登机口',example:'Your flight departs from gate 12.',type:'travel'},
+  {word:'Delay',meaning:'延误',example:'The flight is delayed by one hour.',type:'travel'},
+  {word:'Baggage claim',meaning:'行李提取',example:'Baggage claim is on the first floor.',type:'travel'},
+  {word:'Duty-free',meaning:'免税',example:'I bought perfume at the duty-free shop.',type:'travel'},
+  {word:'How much is it?',meaning:'多少钱？',example:'How much is this scarf?',type:'travel'},
+  {word:'I\'d like to order',meaning:'我想点餐',example:'I\'d like to order the steak, please.',type:'travel'},
+  {word:'The bill, please',meaning:'买单',example:'Excuse me, the bill, please.',type:'travel'},
+  {word:'Keep the change',meaning:'不用找了',example:'Keep the change. Thank you!',type:'travel'},
+  {word:'Single room',meaning:'单人间',example:'I\'d like a single room for two nights.',type:'travel'},
+  {word:'Double room',meaning:'双人间',example:'Do you have a double room available?',type:'travel'},
+  {word:'Breakfast included',meaning:'含早餐',example:'Is breakfast included in the price?',type:'travel'},
+  {word:'City center',meaning:'市中心',example:'How far is the city center?',type:'travel'},
+  {word:'Tourist attraction',meaning:'旅游景点',example:'What is the most popular tourist attraction here?',type:'travel'},
+  {word:'Map',meaning:'地图',example:'Could I have a map of the city?',type:'travel'},
+  {word:'Straight ahead',meaning:'直走',example:'Go straight ahead for two blocks.',type:'travel'},
+  {word:'Turn left',meaning:'左转',example:'Turn left at the traffic light.',type:'travel'},
+  {word:'Turn right',meaning:'右转',example:'Turn right after the bridge.',type:'travel'},
+  {word:'How far?',meaning:'多远？',example:'How far is the train station?',type:'travel'},
+  {word:'Train station',meaning:'火车站',example:'The train station is 10 minutes away.',type:'travel'},
+  {word:'Subway',meaning:'地铁',example:'Take the subway to Times Square.',type:'travel'},
+  {word:'Taxi',meaning:'出租车',example:'Let\'s take a taxi to the hotel.',type:'travel'},
+  {word:'Ticket',meaning:'票',example:'Can I buy a ticket on the bus?',type:'travel'},
+  {word:'One-way',meaning:'单程',example:'I\'d like a one-way ticket, please.',type:'travel'},
+  {word:'Round-trip',meaning:'往返',example:'A round-trip ticket is cheaper.',type:'travel'},
+  {word:'Platform',meaning:'站台',example:'The train departs from platform 3.',type:'travel'},
+  {word:'Pharmacy',meaning:'药店',example:'Is there a pharmacy nearby?',type:'travel'},
+  {word:'Hospital',meaning:'医院',example:'I need to go to the hospital.',type:'travel'},
+  {word:'I feel sick',meaning:'我不舒服',example:'I feel sick. Can you call a doctor?',type:'travel'},
+  {word:'Allergy',meaning:'过敏',example:'I have a peanut allergy.',type:'travel'},
+  {word:'Vegetarian',meaning:'素食',example:'Do you have vegetarian options?',type:'travel'},
+  {word:'Menu',meaning:'菜单',example:'Can I see the menu, please?',type:'travel'},
+  {word:'Delicious',meaning:'美味的',example:'This dish is absolutely delicious!',type:'travel'},
+  {word:'Where is the restroom?',meaning:'洗手间在哪？',example:'Excuse me, where is the restroom?',type:'travel'},
+  {word:'I have a reservation',meaning:'我有预订',example:'Hi, I have a reservation at 7 PM.',type:'travel'},
+  {word:'Lost and found',meaning:'失物招领',example:'I lost my bag. Where is the lost and found?',type:'travel'},
+  {word:'Emergency',meaning:'紧急情况',example:'Call the police! This is an emergency.',type:'travel'},
+  {word:'Destination',meaning:'目的地',example:'What is your final destination?',type:'travel'},
+  {word:'Transfer',meaning:'换乘',example:'You need to transfer at Central Station.',type:'travel'},
+  {word:'Express',meaning:'快车/特快',example:'Take the express train to the airport.',type:'travel'},
+  {word:'Domestic',meaning:'国内',example:'Domestic flights are from Terminal 1.',type:'travel'},
+  {word:'International',meaning:'国际',example:'International departures are upstairs.',type:'travel'},
+  {word:'Sightseeing',meaning:'观光',example:'We went sightseeing all day.',type:'travel'},
+  {word:'Local cuisine',meaning:'当地美食',example:'You must try the local cuisine.',type:'travel'},
+  // 葡萄酒专业 60 词
+  {word:'Tannin',meaning:'单宁',example:'This wine has soft, well-integrated tannins.',type:'wine'},
+  {word:'Body',meaning:'酒体',example:'Cabernet Sauvignon typically has a full body.',type:'wine'},
+  {word:'Aroma',meaning:'香气',example:'The aroma of dark berries fills the glass.',type:'wine'},
+  {word:'Vintage',meaning:'年份',example:'2015 was an exceptional vintage in Bordeaux.',type:'wine'},
+  {word:'Terroir',meaning:'风土',example:'The terroir of Burgundy gives Chardonnay its unique character.',type:'wine'},
+  {word:'Decant',meaning:'醒酒',example:'You should decant this red wine for about an hour.',type:'wine'},
+  {word:'Sommelier',meaning:'侍酒师',example:'The sommelier recommended a perfect pairing.',type:'wine'},
+  {word:'Varietal',meaning:'品种',example:'Malbec is the flagship varietal of Argentina.',type:'wine'},
+  {word:'Fermentation',meaning:'发酵',example:'Alcoholic fermentation turns sugar into alcohol.',type:'wine'},
+  {word:'Oak aging',meaning:'橡木桶陈酿',example:'Oak aging adds vanilla and spice notes.',type:'wine'},
+  {word:'Full-bodied',meaning:'全酒体',example:'Shiraz from Barossa Valley is rich and full-bodied.',type:'wine'},
+  {word:'Medium-bodied',meaning:'中等酒体',example:'This Pinot Noir is elegant and medium-bodied.',type:'wine'},
+  {word:'Light-bodied',meaning:'轻酒体',example:'Riesling is typically light-bodied and refreshing.',type:'wine'},
+  {word:'Dry',meaning:'干型',example:'This Sauvignon Blanc is crisp and dry.',type:'wine'},
+  {word:'Sweet',meaning:'甜型',example:'Sauternes is a lusciously sweet wine from Bordeaux.',type:'wine'},
+  {word:'Crisp',meaning:'爽脆的',example:'A crisp white wine pairs well with seafood.',type:'wine'},
+  {word:'Acidity',meaning:'酸度',example:'High acidity makes the wine taste fresh and lively.',type:'wine'},
+  {word:'Finish',meaning:'余味',example:'The finish lingers with hints of chocolate.',type:'wine'},
+  {word:'Bouquet',meaning:'酒香',example:'The bouquet reveals layers of red fruit and spice.',type:'wine'},
+  {word:'Legs',meaning:'挂杯',example:'The thick legs suggest high alcohol content.',type:'wine'},
+  {word:'Cork',meaning:'软木塞',example:'The cork crumbled when I tried to open the bottle.',type:'wine'},
+  {word:'Blend',meaning:'混酿',example:'This Bordeaux blend combines Merlot and Cabernet.',type:'wine'},
+  {word:'Residual sugar',meaning:'残糖',example:'The residual sugar balances the high acidity.',type:'wine'},
+  {word:'Malolactic fermentation',meaning:'苹果酸-乳酸发酵',example:'Malolactic fermentation softens the acidity in Chardonnay.',type:'wine'},
+  {word:'Lees',meaning:'酒泥',example:'Aging on lees adds creamy texture to the wine.',type:'wine'},
+  {word:'Racking',meaning:'换桶',example:'Racking separates the clear wine from the sediment.',type:'wine'},
+  {word:'Clarification',meaning:'澄清',example:'Egg whites are sometimes used for clarification.',type:'wine'},
+  {word:'Filtration',meaning:'过滤',example:'Some winemakers skip filtration for more flavor.',type:'wine'},
+  {word:'Bottling',meaning:'装瓶',example:'The wine is ready for bottling after aging.',type:'wine'},
+  {word:'Estate',meaning:'酒庄',example:'This wine is produced at our family estate.',type:'wine'},
+  {word:'Appellation',meaning:'产区命名',example:'The appellation system ensures quality and origin.',type:'wine'},
+  {word:'Old vine',meaning:'老藤',example:'Old vine Zinfandel produces concentrated flavors.',type:'wine'},
+  {word:'Yield',meaning:'产量',example:'Low yield often results in higher quality grapes.',type:'wine'},
+  {word:'Harvest',meaning:'采摘',example:'The harvest usually starts in early September.',type:'wine'},
+  {word:'Destemming',meaning:'去梗',example:'Destemming removes the stems before crushing.',type:'wine'},
+  {word:'Crushing',meaning:'破皮',example:'Gentle crushing releases the juice from the grapes.',type:'wine'},
+  {word:'Maceration',meaning:'浸渍',example:'Extended maceration extracts more color and tannin.',type:'wine'},
+  {word:'Pressing',meaning:'压榨',example:'Pressing separates the juice from the skins.',type:'wine'},
+  {word:'Punch down',meaning:'踩皮/压帽',example:'Punch down ensures the cap stays moist during fermentation.',type:'wine'},
+  {word:'Pump over',meaning:'淋皮',example:'Pump over circulates the juice over the cap.',type:'wine'},
+  {word:'Barrel',meaning:'橡木桶',example:'French oak barrels are prized for their subtle flavors.',type:'wine'},
+  {word:'Toast',meaning:'烘烤(木桶)',example:'Medium toast barrels add vanilla and caramel notes.',type:'wine'},
+  {word:'Bung',meaning:'桶塞',example:'The bung is removed for topping up the barrel.',type:'wine'},
+  {word:'Riddling',meaning:'转瓶(香槟工艺)',example:'Riddling collects the yeast in the neck of the bottle.',type:'wine'},
+  {word:'Disgorgement',meaning:'除渣',example:'Disgorgement removes the frozen yeast plug.',type:'wine'},
+  {word:'Dosage',meaning:'补液',example:'The dosage determines the final sweetness of Champagne.',type:'wine'},
+  {word:'Traditional method',meaning:'传统法(起泡酒)',example:'Champagne is made using the traditional method.',type:'wine'},
+  {word:'Carbonic maceration',meaning:'二氧化碳浸渍',example:'Carbonic maceration gives Beaujolais its fruity character.',type:'wine'},
+  {word:'Skin contact',meaning:'皮渣接触',example:'Skin contact adds color and texture to orange wine.',type:'wine'},
+  {word:'Lees stirring',meaning:'搅桶',example:'Lees stirring adds richness to Chardonnay.',type:'wine'},
+  {word:'Oxidation',meaning:'氧化',example:'Too much oxidation can spoil the wine.',type:'wine'},
+  {word:'Reduction',meaning:'还原',example:'Reduction can create struck match aromas in the wine.',type:'wine'},
+  {word:'Cork taint',meaning:'软木塞污染',example:'This wine has cork taint. It smells like wet cardboard.',type:'wine'},
+  {word:'Sediment',meaning:'沉淀物',example:'Decanting helps separate the wine from the sediment.',type:'wine'},
+  {word:'Breathing',meaning:'醒酒(呼吸)',example:'Let the wine breathe for 30 minutes before serving.',type:'wine'},
+  {word:'Palate',meaning:'口感',example:'On the palate, the wine is smooth and balanced.',type:'wine'},
+  {word:'Nose',meaning:'闻香',example:'On the nose, there are hints of cherry and leather.',type:'wine'},
+  {word:'Complexity',meaning:'复杂度',example:'A great wine has layers of complexity.',type:'wine'},
+  {word:'Balance',meaning:'平衡',example:'The balance between fruit and acidity is perfect.',type:'wine'},
+  {word:'Minerality',meaning:'矿物感',example:'Chablis is known for its steely minerality.',type:'wine'},
+];
+
+function saveVocabProgress() { DB.set('vocabProgress', vocabProgress); }
+
+function getTodayVocab() {
+  const today=todayStr();
+  if(!vocabProgress.dailyAssignments[today]) {
+    const learned=new Set(vocabProgress.learnedWords);
+    let travel=VOCAB_LIBRARY.filter(w=>w.type==='travel'&&!learned.has(w.word));
+    let wine=VOCAB_LIBRARY.filter(w=>w.type==='wine'&&!learned.has(w.word));
+    if(travel.length===0) {
+      vocabProgress.learnedWords=vocabProgress.learnedWords.filter(n=>!VOCAB_LIBRARY.find(w=>w.word===n&&w.type==='travel'));
+      travel=VOCAB_LIBRARY.filter(w=>w.type==='travel');
+    }
+    if(wine.length===0) {
+      vocabProgress.learnedWords=vocabProgress.learnedWords.filter(n=>!VOCAB_LIBRARY.find(w=>w.word===n&&w.type==='wine'));
+      wine=VOCAB_LIBRARY.filter(w=>w.type==='wine');
+    }
+    const todayWords=[...travel.slice(0,5),...wine.slice(0,3)];
+    vocabProgress.dailyAssignments[today]=todayWords.map(w=>w.word);
+    saveVocabProgress();
+  }
+  const wordNames=vocabProgress.dailyAssignments[today];
+  return wordNames.map(name=>{
+    const w=VOCAB_LIBRARY.find(v=>v.word===name);
+    return w?{...w,learned:vocabProgress.learnedWords.includes(name)}:null;
+  }).filter(Boolean);
+}
+
+function toggleFlashcard(word) {
+  if(flippedCards[word]) { delete flippedCards[word]; }
+  else {
+    flippedCards[word]=true;
+    // 朗读单词
+    if('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(word);
+      u.lang='en-US'; u.rate=0.85;
+      window.speechSynthesis.speak(u);
+    }
+  }
+  renderVocab();
+}
+
+function markVocabLearned(word) {
+  if(!vocabProgress.learnedWords.includes(word)) {
+    vocabProgress.learnedWords.push(word);
+    saveVocabProgress();
+  }
+  renderVocab();
+}
+
+function renderVocab() {
+  const vocab=getTodayVocab();
+  if(vocab.length===0) {
+    document.getElementById('vocabGrid').innerHTML='<div class="empty"><div class="empty-icon">📖</div>暂无词汇</div>';
+    return;
+  }
+  document.getElementById('vocabGrid').innerHTML=vocab.map(v=>{
+    const isFlipped=flippedCards[v.word];
+    const cls=['flashcard'];
+    if(isFlipped) cls.push('flipped');
+    if(v.learned) cls.push('learned');
+    return `<div class="${cls.join(' ')}" data-vocab="${encodeURIComponent(v.word)}">
+      <div class="fc-word">${v.word}</div>
+      <div class="fc-reveal">
+        <div class="fc-meaning">${v.meaning}</div>
+        ${v.example?`<div class="fc-example">${v.example}</div>`:''}
+        <div class="fc-tags">
+          <span class="fc-tag ${v.type}">${v.type==='travel'?'旅游':'葡萄酒'}</span>
+          <span class="fc-tag learned-tag" data-mark="${encodeURIComponent(v.word)}" style="cursor:pointer;">
+            ${v.learned?'✅ 已学':'标记已学'}
+          </span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// 闪卡事件委托
+document.getElementById('vocabGrid').addEventListener('click', function(e) {
+  const card = e.target.closest('.flashcard');
+  if (!card) return;
+  if (e.target.closest('[data-mark]')) {
+    const word = decodeURIComponent(e.target.closest('[data-mark]').dataset.mark);
+    markVocabLearned(word);
+    return;
+  }
+  const word = decodeURIComponent(card.dataset.vocab);
+  toggleFlashcard(word);
+});
+
+// ==================== 3. 日记 ====================
+function saveDiaryData() { DB.set('diary',diaryData); renderDiaryCalendar(); }
+function changeDiaryDate(dir) {
+  if(dir===0) currentDiaryDate=todayStr();
+  else { const d=new Date(currentDiaryDate); d.setDate(d.getDate()+dir); currentDiaryDate=d.toISOString().slice(0,10); }
+  diaryCalendarDate=currentDiaryDate;
+  const y=parseInt(currentDiaryDate.slice(0,4)), m=parseInt(currentDiaryDate.slice(5,7));
+  diaryCalMonth=y*100+m;
+  renderDiaryCalendar();
+  renderDiary();
+}
+function autoSaveDiary() {
+  const hint=document.getElementById('diarySaveHint');
+  hint.textContent='编辑中...';
+  clearTimeout(diaryTimer);
+  diaryTimer=setTimeout(()=>{saveDiary();hint.textContent='已自动保存 ✓';},1500);
+}
+function saveDiary() {
+  const text=document.getElementById('diaryText').value.trim();
+  const mood=document.getElementById('diaryMood').value;
+  if(!text&&!mood) delete diaryData[currentDiaryDate];
+  else diaryData[currentDiaryDate]={text,mood,updated:new Date().toISOString()};
+  saveDiaryData();
+  document.getElementById('diarySaveHint').textContent='已保存 ✓';
+  renderDiaryHistory();
+}
+function renderDiary() {
+  document.getElementById('diaryDateLabel').textContent=currentDiaryDate===todayStr()?'今天':fmtDate(currentDiaryDate);
+  const entry=diaryData[currentDiaryDate]||{};
+  document.getElementById('diaryText').value=entry.text||'';
+  document.getElementById('diaryMood').value=entry.mood||'';
+  document.getElementById('diarySaveHint').textContent='';
+  renderDiaryHistory();
+}
+function renderDiaryHistory() {
+  const entries=Object.entries(diaryData).filter(([k,v])=>v&&(v.text||v.mood)).sort((a,b)=>b[0].localeCompare(a[0]));
+  if(entries.length===0) {
+    document.getElementById('diaryHistory').innerHTML='<div class="empty"><div class="empty-icon">📝</div>还没有写过日记</div>';
+    return;
+  }
+  document.getElementById('diaryHistory').innerHTML=entries.map(([date,entry])=>`
+    <div class="diary-entry" style="${date===currentDiaryDate?'box-shadow:0 0 0 2px var(--primary);':''}">
+      <button class="diary-delete" onclick="deleteDiaryEntry('${date}')" title="删除这篇日记">🗑️</button>
+      <div class="diary-date">${fmtDate(date)}${entry.mood?`<span class="diary-mood">${entry.mood}</span>`:''}</div>
+      <div class="diary-text">${entry.text||'(无内容)'}</div>
+    </div>`).join('');
+}
+function deleteDiaryEntry(date) {
+  if(!confirm('确定删除这篇日记吗？删除后无法恢复。')) return;
+  delete diaryData[date];
+  saveDiaryData();
+  if(date===currentDiaryDate) {
+    document.getElementById('diaryText').value='';
+    document.getElementById('diaryMood').value='';
+  }
+  renderDiaryHistory();
+}
+
+
+function renderCalendar(containerId, monthKey, currentDate, dataObj, onSelectDate) {
+  const y=Math.floor(monthKey/100), m=monthKey%100;
+  const firstDay=new Date(y,m-1,1).getDay(); // 0=Sun
+  const daysInMonth=new Date(y,m,0).getDate();
+  const daysInPrevMonth=new Date(y,m-1,0).getDate();
+  const today=todayStr();
+  const weekDays=['日','一','二','三','四','五','六'];
+
+  let html=`<div class="calendar-header">
+    <button onclick="changeCalMonth('${containerId}',-1)">‹</button>
+    <span class="cal-month">${y}年${m}月</span>
+    <button onclick="changeCalMonth('${containerId}',1)">›</button>
+  </div>`;
+  html+='<div class="calendar-weekdays">'+weekDays.map(d=>`<span>${d}</span>`).join('')+'</div>';
+  html+='<div class="calendar-days">';
+
+  // 上月填充
+  for(let i=firstDay-1;i>=0;i--) {
+    const d=daysInPrevMonth-i;
+    const ds=`${y}-${String(m-1||12).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    html+=`<div class="calendar-day other-month">${d}</div>`;
+  }
+
+  // 本月
+  for(let d=1;d<=daysInMonth;d++) {
+    const ds=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=ds===today;
+    const isActive=ds===currentDate;
+    const hasData=!!dataObj[ds];
+    const cls=['calendar-day'];
+    if(isToday) cls.push('today');
+    if(isActive) cls.push('active-date');
+    if(hasData) cls.push('has-data');
+    html+=`<div class="${cls.join(' ')}" onclick="${onSelectDate}('${ds}')">${d}</div>`;
+  }
+
+  // 下月填充
+  const remaining=(7-(firstDay+daysInMonth)%7)%7;
+  for(let i=1;i<=remaining;i++) {
+    html+=`<div class="calendar-day other-month">${i}</div>`;
+  }
+
+  html+='</div>';
+  document.getElementById(containerId).innerHTML=html;
+}
+
+function changeCalMonth(containerId, dir) {
+  if(containerId==='planCalendar') {
+    let y=Math.floor(planCalMonth/100), m=planCalMonth%100;
+    m+=dir; if(m>12){m=1;y++;}if(m<1){m=12;y--;}
+    planCalMonth=y*100+m;
+    renderPlanCalendar();
+  } else {
+    let y=Math.floor(diaryCalMonth/100), m=diaryCalMonth%100;
+    m+=dir; if(m>12){m=1;y++;}if(m<1){m=12;y--;}
+    diaryCalMonth=y*100+m;
+    renderDiaryCalendar();
+  }
+}
+
+function selectPlanDate(ds) {
+  currentPlanDate=ds;
+  planCalendarDate=ds;
+  const y=parseInt(ds.slice(0,4)), m=parseInt(ds.slice(5,7));
+  planCalMonth=y*100+m;
+  renderPlanCalendar();
+  renderTodos();
+}
+
+function selectDiaryDate(ds) {
+  currentDiaryDate=ds;
+  diaryCalendarDate=ds;
+  const y=parseInt(ds.slice(0,4)), m=parseInt(ds.slice(5,7));
+  diaryCalMonth=y*100+m;
+  renderDiaryCalendar();
+  renderDiary();
+}
+
+function renderPlanCalendar() {
+  if (document.getElementById('planCalWrap').style.display === 'none') return;
+  const data={};
+  Object.keys(todoData).forEach(d=>{ if(todoData[d]&&todoData[d].length>0) data[d]=true; });
+  renderCalendar('planCalendar', planCalMonth, planCalendarDate, data, 'selectPlanDate');
+}
+
+function renderDiaryCalendar() {
+  if (document.getElementById('diaryCalWrap').style.display === 'none') return;
+  const data={};
+  Object.keys(diaryData).forEach(d=>{ if(diaryData[d]&&(diaryData[d].text||diaryData[d].mood)) data[d]=true; });
+  renderCalendar('diaryCalendar', diaryCalMonth, diaryCalendarDate, data, 'selectDiaryDate');
+}
+
+// ==================== 4. 销售记录 ====================
+function saveSales() { DB.set('sales',salesData); }
+function openSaleModal() {
+  openModal('添加销售记录',`
+    <div class="form-row">
+      <div class="form-group"><label>日期</label><input type="date" id="saleDate" value="${todayStr()}"></div>
+      <div class="form-group"><label>酒品名称</label><input type="text" id="saleWine" placeholder="例：奔富葛兰许2018"></div>
+      <div class="form-group"><label>客户</label><input type="text" id="saleCustomer" placeholder="客户姓名"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>售价 单价</label><input type="number" id="saleUnitPrice" placeholder="0" step="0.01" oninput="calcSale()"></div>
+      <div class="form-group"><label>× 数量</label><input type="number" id="saleQty" value="1" placeholder="1" oninput="calcSale()"></div>
+      <div class="form-group"><label>= 售价总价</label><input type="text" id="saleTotalPrice" readonly style="background:#f5f5f5;font-weight:600;"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>成本 单价</label><input type="number" id="saleCostPrice" placeholder="0" step="0.01" oninput="calcSale()"></div>
+      <div class="form-group"><label>= 成本总价</label><input type="text" id="saleTotalCost" readonly style="background:#f5f5f5;"></div>
+      <div class="form-group"><label>运费</label><input type="number" id="saleFreight" value="0" placeholder="0" step="0.01" oninput="calcSale()"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>利润（自动）</label><input type="text" id="saleProfit" readonly style="background:#f5f5f5;font-weight:600;"></div>
+    </div>
+    <div class="form-group"><label>备注</label><textarea id="saleNotes" placeholder="例如：朋友介绍 / 批发价 / 赠送酒杯等"></textarea></div>
+  `,`<button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitSale()">保存</button>`);
+}
+function calcSale() {
+  const up=parseFloat(document.getElementById('saleUnitPrice').value)||0;
+  const qty=parseInt(document.getElementById('saleQty').value)||0;
+  const cp=parseFloat(document.getElementById('saleCostPrice').value)||0;
+  const freight=parseFloat(document.getElementById('saleFreight').value)||0;
+  const totalPrice=up*qty;
+  const totalCost=cp*qty;
+  document.getElementById('saleTotalPrice').value=totalPrice.toFixed(2);
+  document.getElementById('saleTotalCost').value=totalCost.toFixed(2);
+  document.getElementById('saleProfit').value=(totalPrice-totalCost-freight).toFixed(2);
+}
+function submitSale() {
+  const wine=document.getElementById('saleWine').value.trim();
+  if(!wine){alert('请输入酒品名称');return;}
+  const up=parseFloat(document.getElementById('saleUnitPrice').value)||0;
+  const qty=parseInt(document.getElementById('saleQty').value)||1;
+  const cp=parseFloat(document.getElementById('saleCostPrice').value)||0;
+  const freight=parseFloat(document.getElementById('saleFreight').value)||0;
+  const totalPrice=up*qty;
+  const totalCost=cp*qty;
+  salesData.unshift({
+    id:uid(),date:document.getElementById('saleDate').value,wine,
+    customer:document.getElementById('saleCustomer').value.trim(),
+    unitPrice:up,qty,totalPrice,costPrice:cp,totalCost,freight,
+    profit:totalPrice-totalCost-freight,
+    notes:document.getElementById('saleNotes').value.trim()
+  });
+  saveSales();closeModal();renderSales();
+}
+function deleteSale(id) {
+  if(!confirm('确定删除这条记录？'))return;
+  salesData=salesData.filter(s=>s.id!==id);
+  saveSales();renderSales();
+}
+function renderSales() {
+  if(salesData.length===0){
+    document.getElementById('salesTableWrap').innerHTML='<div class="empty"><div class="empty-icon">📊</div>还没有销售记录</div>';
+    return;
+  }
+  document.getElementById('salesTableWrap').innerHTML=`
+    <table>
+      <thead><tr><th>日期</th><th>酒品</th><th>客户</th><th>单价</th><th>数量</th><th>售价总价</th><th>成本单价</th><th>成本总价</th><th>运费</th><th>利润</th><th>备注</th><th></th></tr></thead>
+      <tbody>${salesData.map(s=>`
+        <tr>
+          <td>${fmtDate(s.date)}</td><td>${s.wine}</td><td>${s.customer||'-'}</td>
+          <td>${fmtMoney(s.unitPrice)}</td><td>${s.qty}</td><td>${fmtMoney(s.totalPrice)}</td>
+          <td>${fmtMoney(s.costPrice)}</td><td>${fmtMoney(s.totalCost)}</td><td>${fmtMoney(s.freight)}</td>
+          <td style="color:${s.profit>=0?'var(--success)':'var(--danger)'};font-weight:600;">${fmtMoney(s.profit)}</td>
+          <td style="color:var(--text-mid);max-width:150px;">${s.notes||'-'}</td>
+          <td><button class="icon-btn" onclick="deleteSale('${s.id}')">🗑️</button></td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// ==================== 5. 学员招生 ====================
+function saveStudents(){DB.set('students',studentData);}
+function setStudentFilter(f){
+  studentFilter=f;
+  document.querySelectorAll('[data-sfilter]').forEach(b=>b.classList.remove('active'));
+  document.querySelector(`[data-sfilter="${f}"]`).classList.add('active');
+  renderStudents();
+}
+function openStudentModal(){
+  openModal('添加学员',`
+    <div class="form-row">
+      <div class="form-group"><label>姓名</label><input type="text" id="stuName" placeholder="学员姓名"></div>
+      <div class="form-group"><label>联系方式</label><input type="text" id="stuContact" placeholder="手机号/微信"></div>
+      <div class="form-group"><label>课程</label><select id="stuCategory">
+        <option value="UAWS初级">UAWS初级</option><option value="WSET二级">WSET 二级</option><option value="WSET三级">WSET 三级</option>
+      </select></div>
+      <div class="form-group"><label>状态</label><select id="stuStatus">
+        <option value="咨询中">咨询中</option><option value="已报名">已报名</option><option value="未接通">未接通</option>
+      </select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>方便上课时间</label><input type="text" id="stuTime" placeholder="例：周末 / 工作日晚上"></div>
+    </div>
+    <div class="form-group"><label>备注 / 跟进记录</label><textarea id="stuNotes" placeholder="记录沟通情况、学员需求等..."></textarea></div>
+  `,`<button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitStudent()">保存</button>`);
+}
+function submitStudent(){
+  const name=document.getElementById('stuName').value.trim();
+  if(!name){alert('请输入学员姓名');return;}
+  studentData.unshift({
+    id:uid(),name,contact:document.getElementById('stuContact').value.trim(),
+    category:document.getElementById('stuCategory').value,
+    status:document.getElementById('stuStatus').value,
+    availableTime:document.getElementById('stuTime').value.trim(),
+    notes:document.getElementById('stuNotes').value.trim(),
+    createdAt:todayStr(),followUps:[]
+  });
+  saveStudents();closeModal();renderStudents();
+}
+function deleteStudent(id){if(!confirm('确定删除该学员？'))return;studentData=studentData.filter(s=>s.id!==id);saveStudents();renderStudents();}
+function updateStudentStatus(id,status){const s=studentData.find(x=>x.id===id);if(s){s.status=status;saveStudents();renderStudents();}}
+function addFollowUp(id){
+  const text=prompt('输入跟进记录：');
+  if(!text)return;
+  const s=studentData.find(x=>x.id===id);
+  if(s){if(!s.followUps)s.followUps=[];s.followUps.unshift({date:todayStr(),text});saveStudents();renderStudents();}
+}
+function renderStudents(){
+  const filtered=studentFilter==='all'?studentData:studentData.filter(s=>s.category===studentFilter);
+  if(filtered.length===0){document.getElementById('studentList').innerHTML='<div class="empty"><div class="empty-icon">🎓</div>暂无学员记录</div>';return;}
+  document.getElementById('studentList').innerHTML=filtered.map(s=>`
+    <div class="student-card">
+      <div class="stu-header">
+        <span class="stu-name">${s.name} <span style="font-size:13px;color:var(--text-light);">· ${s.category}</span></span>
+        <span class="tag tag-${s.status==='已报名'?'enrolled':s.status==='咨询中'?'consult':'pending'}">${s.status}</span>
+      </div>
+      <div class="stu-info">
+        ${s.contact?`<span>📱 ${s.contact}</span>`:''}
+        ${s.availableTime?`<span>🕐 ${s.availableTime}</span>`:''}
+        <span>📅 ${fmtDate(s.createdAt)}添加</span>
+      </div>
+      ${s.notes?`<div class="stu-notes">📝 ${s.notes}</div>`:''}
+      ${(s.followUps&&s.followUps.length)?s.followUps.map(f=>`<div class="stu-notes">📞 ${fmtDate(f.date)}：${f.text}</div>`).join(''):''}
+      <div class="stu-actions">
+        ${s.status!=='已报名'?`<button class="btn btn-success btn-sm" onclick="updateStudentStatus('${s.id}','已报名')">标记已报名</button>`:''}
+        ${s.status!=='咨询中'?`<button class="btn btn-outline btn-sm" onclick="updateStudentStatus('${s.id}','咨询中')">标记咨询中</button>`:''}
+        <button class="btn btn-outline btn-sm" onclick="addFollowUp('${s.id}')">+ 跟进记录</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">删除</button>
+      </div>
+    </div>`).join('');
+}
+
+// ==================== 6. 资金规划 ====================
+function saveAccounts(){DB.set('accounts',accountData);}
+function saveFunds(){DB.set('funds',fundData);}
+const accountIcons={'银行卡':'🏦','微信':'💚','支付宝':'💙','黄金':'🥇','基金':'📈','定期':'🔒','现金':'💵','其他':'💳'};
+
+function openAccountModal(){
+  openModal('添加资产账户',`
+    <div class="form-row">
+      <div class="form-group"><label>账户类型</label><select id="acctType">${Object.keys(accountIcons).map(k=>`<option value="${k}">${accountIcons[k]} ${k}</option>`).join('')}</select></div>
+      <div class="form-group"><label>账户名称</label><input type="text" id="acctName" placeholder="例：招商银行 / 微信零钱通"></div>
+      <div class="form-group"><label>金额（元）</label><input type="number" id="acctAmount" placeholder="0.00" step="0.01"></div>
+    </div>
+    <div class="form-group"><label>备注</label><input type="text" id="acctNotes" placeholder="选填"></div>
+  `,`<button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitAccount()">保存</button>`);
+}
+function submitAccount(){
+  const name=document.getElementById('acctName').value.trim();
+  if(!name){alert('请输入账户名称');return;}
+  const amount=parseFloat(document.getElementById('acctAmount').value)||0;
+  accountData.push({
+    id:uid(),type:document.getElementById('acctType').value,name,amount,
+    prevAmount:null,prevUpdated:null,updatedAt:todayStr(),
+    notes:document.getElementById('acctNotes').value.trim()
+  });
+  saveAccounts();closeModal();renderFinance();
+}
+function updateAccountAmount(id){
+  const a=accountData.find(x=>x.id===id);if(!a)return;
+  const val=prompt(`更新「${a.name}」金额：\n上次记录：${fmtMoney(a.prevAmount||a.amount)}（${a.prevUpdated||a.updatedAt||'首次记录'}）\n请输入新金额：`,a.amount);
+  if(val!==null){
+    const newAmt=parseFloat(val)||0;
+    a.prevAmount=a.amount;a.prevUpdated=a.updatedAt;a.amount=newAmt;a.updatedAt=todayStr();
+    saveAccounts();renderFinance();
+  }
+}
+function deleteAccount(id){if(!confirm('确定删除该账户？'))return;accountData=accountData.filter(a=>a.id!==id);saveAccounts();renderFinance();}
+
+function openFundModal(){
+  openModal('添加基金',`
+    <div class="form-row">
+      <div class="form-group"><label>基金名称</label><input type="text" id="fundName" placeholder="例：沪深300ETF"></div>
+      <div class="form-group"><label>基金代码</label><input type="text" id="fundCode" placeholder="选填"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>买入金额（元）</label><input type="number" id="fundCost" placeholder="0.00" step="0.01"></div>
+      <div class="form-group"><label>当前市值（元）</label><input type="number" id="fundCurrent" placeholder="0.00" step="0.01"></div>
+    </div>
+  `,`<button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitFund()">保存</button>`);
+}
+function submitFund(){
+  const name=document.getElementById('fundName').value.trim();
+  if(!name){alert('请输入基金名称');return;}
+  const cost=parseFloat(document.getElementById('fundCost').value)||0;
+  const current=parseFloat(document.getElementById('fundCurrent').value)||0;
+  fundData.push({id:uid(),name,code:document.getElementById('fundCode').value.trim(),cost,current,prevCurrent:null,updatedAt:todayStr()});
+  saveFunds();closeModal();renderFinance();
+}
+function updateFundValue(id){
+  const f=fundData.find(x=>x.id===id);if(!f)return;
+  const val=prompt(`更新「${f.name}」当前市值：\n上次市值：${fmtMoney(f.prevCurrent||f.current)}（${f.updatedAt||'首次记录'}）\n请输入新市值：`,f.current);
+  if(val!==null){
+    const newVal=parseFloat(val)||0;
+    f.prevCurrent=f.current;f.current=newVal;f.updatedAt=todayStr();
+    saveFunds();renderFinance();
+  }
+}
+function deleteFund(id){if(!confirm('确定删除该基金？'))return;fundData=fundData.filter(f=>f.id!==id);saveFunds();renderFinance();}
+
+function renderFinance(){
+  const accountTotal=accountData.reduce((s,a)=>s+a.amount,0);
+  const fundCost=fundData.reduce((s,f)=>s+f.cost,0);
+  const fundCurrent=fundData.reduce((s,f)=>s+f.current,0);
+  const fundProfit=fundCurrent-fundCost;
+  const totalAssets=accountTotal+fundCurrent;
+  document.getElementById('financeStats').innerHTML=`
+    <div class="stat-card"><div class="label">总资产</div><div class="value primary">${fmtMoney(totalAssets)}</div></div>
+    <div class="stat-card"><div class="label">现金类账户</div><div class="value" style="color:var(--info);font-size:22px;font-weight:700;">${fmtMoney(accountTotal)}</div></div>
+    <div class="stat-card"><div class="label">基金市值</div><div class="value" style="color:var(--warning);font-size:22px;font-weight:700;">${fmtMoney(fundCurrent)}</div></div>
+    <div class="stat-card"><div class="label">基金盈亏</div><div class="value ${fundProfit>=0?'profit-positive':'profit-negative'}" style="${fundProfit<0?'color:var(--danger);':''}">${fundProfit>=0?'+':''}${fmtMoney(fundProfit)}</div></div>`;
+  // 账户列表
+  if(accountData.length===0){
+    document.getElementById('accountList').innerHTML='<div class="empty"><div class="empty-icon">💰</div>还没有账户</div>';
+  }else{
+    document.getElementById('accountList').innerHTML=accountData.map(a=>{
+      const change=a.prevAmount!==null?a.amount-a.prevAmount:0;
+      return`
+      <div class="asset-account">
+        <div class="acct-info">
+          <span class="acct-icon">${accountIcons[a.type]||'💳'}</span>
+          <div>
+            <div class="acct-name">${a.name}</div>
+            <div class="acct-type">${a.type}${a.notes?' · '+a.notes:''}</div>
+            <div class="acct-time">${a.prevAmount!==null?`上次：${fmtMoney(a.prevAmount)}（${a.prevUpdated}）→ 当前：${a.updatedAt}`:`记录于 ${a.updatedAt}`}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="text-align:right;">
+            <div class="acct-amount" style="cursor:pointer;" title="点击更新" onclick="updateAccountAmount('${a.id}')">${fmtMoney(a.amount)}</div>
+            ${a.prevAmount!==null?`<div class="acct-change" style="color:${change>=0?'var(--success)':'var(--danger)'};">${change>=0?'+':''}${fmtMoney(change)}</div>`:'<div class="acct-change" style="color:var(--text-light);">首次记录</div>'}
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="updateAccountAmount('${a.id}')">更新</button>
+          <button class="icon-btn" onclick="deleteAccount('${a.id}')">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  // 基金表格
+  if(fundData.length===0){
+    document.getElementById('fundTableWrap').innerHTML='<div class="empty"><div class="empty-icon">📈</div>还没有基金记录</div>';
+  }else{
+    document.getElementById('fundTableWrap').innerHTML=`
+      <table>
+        <thead><tr><th>基金名称</th><th>代码</th><th>买入成本</th><th>当前市值</th><th>盈亏</th><th>收益率</th><th>更新时间</th><th>操作</th></tr></thead>
+        <tbody>${fundData.map(f=>{
+          const profit=f.current-f.cost;
+          const rate=f.cost>0?(profit/f.cost*100):0;
+          const chg=f.prevCurrent!==null?f.current-f.prevCurrent:null;
+          return`
+          <tr class="fund-row">
+            <td><b>${f.name}</b></td><td style="color:var(--text-light);">${f.code||'-'}</td>
+            <td>${fmtMoney(f.cost)}</td>
+            <td>${fmtMoney(f.current)}${chg!==null?` <span style="font-size:11px;color:${chg>=0?'var(--success)':'var(--danger)'};">(${chg>=0?'+':''}${fmtMoney(chg)})</span>`:''}</td>
+            <td class="${profit>=0?'profit-positive':'profit-negative'}">${profit>=0?'+':''}${fmtMoney(profit)}</td>
+            <td class="${rate>=0?'profit-positive':'profit-negative'}">${rate>=0?'+':''}${rate.toFixed(2)}%</td>
+            <td style="color:var(--text-light);font-size:12px;">${f.updatedAt}</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="updateFundValue('${f.id}')">更新市值</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteFund('${f.id}')" style="margin-top:4px;">删除</button>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+      <div style="margin-top:10px;font-size:13px;color:var(--text-light);">
+        💡 点击「更新市值」输入新市值，系统自动记录变化；点击「删除」移除该基金
+      </div>`;
+  }
+}
+
+// ==================== 7. 文案备忘 ====================
+function saveCopy(){DB.set('copywriting',copyData);}
+function openCopyModal(){
+  openModal('新建文案',`
+    <div class="form-group"><label>文案内容</label><textarea id="copyContent" placeholder="在这里写文案..." style="min-height:160px;"></textarea></div>
+    <div class="form-group"><label>备注（选填）</label><input type="text" id="copyNotes" placeholder="例如：配合周末活动使用、图片已准备好等"></div>
+  `,`<button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitCopy()">保存</button>`);
+}
+function submitCopy(){
+  const content=document.getElementById('copyContent').value.trim();
+  if(!content){alert('请输入文案内容');return;}
+  copyData.unshift({id:uid(),content,notes:document.getElementById('copyNotes').value.trim(),published:false,publishedDate:null,createdAt:todayStr()});
+  saveCopy();closeModal();renderCopywriting();
+}
+function publishCopy(id){const c=copyData.find(x=>x.id===id);if(c){c.published=true;c.publishedDate=todayStr();saveCopy();renderCopywriting();}}
+function unpublishCopy(id){const c=copyData.find(x=>x.id===id);if(c){c.published=false;c.publishedDate=null;saveCopy();renderCopywriting();}}
+function deleteCopy(id){if(!confirm('确定删除这条文案？'))return;copyData=copyData.filter(c=>c.id!==id);saveCopy();renderCopywriting();}
+function renderCopywriting(){
+  const unpub=copyData.filter(c=>!c.published);
+  const pub=copyData.filter(c=>c.published);
+  if(unpub.length===0) document.getElementById('copyUnpublished').innerHTML='<div class="empty"><div class="empty-icon">✍️</div>没有待发布的文案</div>';
+  else document.getElementById('copyUnpublished').innerHTML=unpub.map(c=>`
+    <div class="copy-card">
+      <div class="copy-header">
+        <span class="copy-type">📝 创建于 ${fmtDate(c.createdAt)}${c.notes?' · '+c.notes:''}</span>
+        <button class="icon-btn" onclick="deleteCopy('${c.id}')">🗑️</button>
+      </div>
+      <div class="copy-content">${c.content}</div>
+      <div class="copy-actions"><button class="btn btn-success btn-sm" onclick="publishCopy('${c.id}')">✓ 标记已发布</button></div>
+    </div>`).join('');
+  if(pub.length===0) document.getElementById('copyPublished').innerHTML='<div class="empty" style="padding:20px;"><div class="empty-icon">📂</div>还没有已发布的文案</div>';
+  else document.getElementById('copyPublished').innerHTML=pub.map(c=>`
+    <div class="copy-card published">
+      <div class="copy-header">
+        <span class="copy-type">✅ ${fmtDate(c.publishedDate)} 已发布 · ${fmtDate(c.createdAt)}创建</span>
+        <button class="icon-btn" onclick="deleteCopy('${c.id}')">🗑️</button>
+      </div>
+      <div class="copy-content">${c.content}</div>
+      <div class="copy-actions"><button class="btn btn-outline btn-sm" onclick="unpublishCopy('${c.id}')">↩ 取消发布</button></div>
+    </div>`).join('');
+}
+
+// ==================== 数据导出/导入 ====================
+function exportAllData() {
+  const allData = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    todoData, vocabProgress,
+    diaryData, salesData, studentData,
+    accountData, fundData, copyData
+  };
+  const blob = new Blob([JSON.stringify(allData, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Penny工作台备份_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importAllData(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const allData = JSON.parse(ev.target.result);
+      if(!allData.version) throw new Error('无效的备份文件');
+      todoData = allData.todoData || {};
+      vocabProgress = allData.vocabProgress || { dailyAssignments:{}, learnedWords:[] };
+      diaryData = allData.diaryData || {};
+      salesData = allData.salesData || [];
+      studentData = allData.studentData || [];
+      accountData = allData.accountData || [];
+      fundData = allData.fundData || [];
+      copyData = allData.copyData || [];
+      saveAllData();
+      refreshCurrentSection();
+      alert('数据导入成功！');
+    } catch(err) {
+      alert('导入失败：文件格式不正确');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+function saveAllData() {
+  DB.set('todos', todoData);
+  DB.set('vocabProgress', vocabProgress);
+  DB.set('diary', diaryData);
+  DB.set('sales', salesData);
+  DB.set('students', studentData);
+  DB.set('accounts', accountData);
+  DB.set('funds', fundData);
+  DB.set('copywriting', copyData);
+}
+function refreshCurrentSection() {
+  const activeSection = document.querySelector('.section.active')?.id || 'section-plan';
+  const sec = activeSection.replace('section-','');
+  const refreshMap = {
+    'plan': renderTodos,
+    'english': renderVocab,
+    'diary': function(){renderDiary();},
+    'sales': renderSales,
+    'students': renderStudents,
+    'finance': renderFinance,
+    'copywriting': renderCopywriting
+  };
+  if(refreshMap[sec]) refreshMap[sec]();
+}
+
+// ==================== 初始化 ====================
+renderTodos();
+</script>
+</body>
+</html>
