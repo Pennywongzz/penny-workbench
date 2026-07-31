@@ -374,6 +374,10 @@ tr:hover td { background:#faf9f7; }
         <div class="sidebar-item" data-section="finance" >
           <span class="s-icon">💰</span><span class="s-label">资金规划</span>
         </div>
+        <div style="height:1px;background:var(--border);margin:8px 14px;"></div>
+        <div class="sidebar-item" onclick="openSyncSettings()" style="cursor:pointer;">
+          <span class="s-icon">☁️</span><span class="s-label">云同步设置</span>
+        </div>
       </div>
     </div>
 
@@ -543,6 +547,66 @@ const DB = {
   get(key, def) { try { const v=localStorage.getItem('pw_'+key); return v?JSON.parse(v):def; } catch { return def; } },
   set(key, val) { localStorage.setItem('pw_'+key, JSON.stringify(val)); }
 };
+
+// ==================== 云同步（Supabase / PostgREST） ====================
+// 直接调用 Supabase 的 REST API，无需引入外部 SDK；配置保存在本地（pw_sync）。
+function writeAllLocal() {
+  DB.set('todos', todoData); DB.set('checkins', checkinData); DB.set('diary', diaryData);
+  DB.set('sales', salesData); DB.set('students', studentData); DB.set('accounts', accountData);
+  DB.set('funds', fundData); DB.set('copywriting', copyData);
+}
+function collectAllData() {
+  return { todoData, checkinData, diaryData, salesData, studentData, accountData, fundData, copyData };
+}
+function applyCloudData(cloud) {
+  if(!cloud) return;
+  if(cloud.todoData!==undefined) todoData=cloud.todoData;
+  if(cloud.checkinData!==undefined) checkinData=cloud.checkinData;
+  if(cloud.diaryData!==undefined) diaryData=cloud.diaryData;
+  if(cloud.salesData!==undefined) salesData=cloud.salesData;
+  if(cloud.studentData!==undefined) studentData=cloud.studentData;
+  if(cloud.accountData!==undefined) accountData=cloud.accountData;
+  if(cloud.fundData!==undefined) fundData=cloud.fundData;
+  if(cloud.copyData!==undefined) copyData=cloud.copyData;
+  writeAllLocal();
+}
+const Sync = {
+  cfg: null, enabled: false, lastSync: null,
+  init() {
+    this.cfg = DB.get('sync', null);
+    this.enabled = !!(this.cfg && this.cfg.url && this.cfg.key);
+    this.lastSync = DB.get('lastSync', null);
+  },
+  _headers() {
+    return { 'apikey': this.cfg.key, 'Authorization': 'Bearer '+this.cfg.key,
+             'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' };
+  },
+  _base() { return (this.cfg.url||'').replace(/\/+$/,''); },
+  async test() {
+    if(!this.enabled) return false;
+    const r = await fetch(`${this._base()}/rest/v1/workbench_data?select=id&limit=1`,
+      {headers:{'apikey':this.cfg.key,'Authorization':'Bearer '+this.cfg.key}});
+    return r.ok;
+  },
+  async pull() {
+    if(!this.enabled) return false;
+    const r = await fetch(`${this._base()}/rest/v1/workbench_data?id=eq.penny&select=*`,
+      {headers:{'apikey':this.cfg.key,'Authorization':'Bearer '+this.cfg.key}});
+    if(!r.ok) throw new Error('拉取失败('+r.status+')');
+    const rows = await r.json();
+    if(rows && rows[0] && rows[0].data) { applyCloudData(rows[0].data); this.lastSync=new Date().toISOString(); DB.set('lastSync', this.lastSync); return true; }
+    return false;
+  },
+  async push() {
+    if(!this.enabled) return false;
+    const payload = [{ id:'penny', data: collectAllData(), updated_at: new Date().toISOString() }];
+    const r = await fetch(`${this._base()}/rest/v1/workbench_data`,
+      { method:'POST', headers:this._headers(), body: JSON.stringify(payload) });
+    if(!r.ok) throw new Error('推送失败('+r.status+')');
+    this.lastSync=new Date().toISOString(); DB.set('lastSync', this.lastSync);
+    return true;
+  }
+};
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function fmtDate(d) { if(!d) return ''; const dt=new Date(d); return `${dt.getMonth()+1}月${dt.getDate()}日`; }
 function fmtMoney(n) { return '¥'+Number(n||0).toLocaleString('zh-CN',{minimumFractionDigits:0,maximumFractionDigits:2}); }
@@ -636,6 +700,40 @@ function openModal(title,bodyHTML,footerHTML) {
 function closeModal() { document.getElementById('modalMask').classList.remove('show'); }
 document.getElementById('modalMask').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
 
+// ==================== 云同步设置弹窗 ====================
+function openSyncSettings() {
+  const cfg = Sync.cfg || {};
+  const last = Sync.lastSync ? ('上次同步：'+new Date(Sync.lastSync).toLocaleString('zh-CN')) : '尚未同步';
+  const body = `
+    <p style="font-size:13px;color:var(--text-mid);margin:0 0 10px;">开启后，所有数据会自动保存在云端，手机和电脑打开同一个链接即可同步。需要先到 Supabase 建好数据表，再把下方信息填进来。</p>
+    <div class="form-group"><label>Supabase 项目 URL</label><input type="text" id="syncUrl" placeholder="https://xxxx.supabase.co" value="${cfg.url||''}"></div>
+    <div class="form-group"><label>anon key（公开密钥）</label><input type="text" id="syncKey" placeholder="eyJ..." value="${cfg.key||''}"></div>
+    <div id="syncStatus" style="font-size:12px;color:var(--primary);margin-top:6px;">${last}</div>
+  `;
+  const footer = `
+    <button class="btn btn-outline" onclick="closeModal()">关闭</button>
+    <button class="btn btn-outline" onclick="doSyncPull()">从云端拉取</button>
+    <button class="btn btn-outline" onclick="doSyncPush()">上传到云端</button>
+    <button class="btn" onclick="saveSyncConfig()">保存并连接</button>
+  `;
+  openModal('☁️ 云同步设置', body, footer);
+}
+function setSyncStatus(msg){ const el=document.getElementById('syncStatus'); if(el) el.textContent=msg; }
+async function saveSyncConfig() {
+  const url=document.getElementById('syncUrl').value.trim();
+  const key=document.getElementById('syncKey').value.trim();
+  if(!url||!key){ alert('请填写 URL 和 anon key'); return; }
+  Sync.cfg={url,key}; Sync.enabled=true; DB.set('sync', Sync.cfg);
+  setSyncStatus('已保存，正在测试连接…');
+  try {
+    const ok = await Sync.test();
+    if(ok){ await Sync.push(); setSyncStatus('已连接并上传 ✓ 上次同步：'+new Date().toLocaleString('zh-CN')); }
+    else setSyncStatus('连接失败：请检查 URL 和 anon key 是否正确');
+  } catch(e){ setSyncStatus('连接失败：'+e.message); }
+}
+function doSyncPush(){ if(!Sync.enabled){alert('请先填写并保存 URL 与 key');return;} Sync.push().then(()=>setSyncStatus('上传成功 ✓ '+new Date().toLocaleString('zh-CN'))).catch(e=>setSyncStatus('上传失败：'+e.message)); }
+function doSyncPull(){ if(!Sync.enabled){alert('请先填写并保存 URL 与 key');return;} Sync.pull().then(ok=>{ if(ok){refreshCurrentSection(); setSyncStatus('拉取成功 ✓ '+new Date().toLocaleString('zh-CN'));} else setSyncStatus('云端暂无数据，已保持本地'); }).catch(e=>setSyncStatus('拉取失败：'+e.message)); }
+
 // ==================== 1. 每日计划 ====================
 function saveTodos() { DB.set('todos',todoData); renderPlanCalendar(); }
 function changePlanDate(dir) {
@@ -682,8 +780,8 @@ function renderTodos() {
 
 // ==================== 2. 吃药打卡 ====================
 const CHECKIN_ITEMS = [
-  {key:'morning', label:'早晨服药', icon:'🌅', time:'08:00', tip:'起床后'},
-  {key:'noon',    label:'中午服药', icon:'☀️', time:'12:00', tip:'午饭后'},
+  {key:'morning', label:'早晨服药', icon:'🌅', time:'09:00', tip:'起床后'},
+  {key:'noon',    label:'中午服药', icon:'☀️', time:'14:00', tip:'午饭后'},
   {key:'evening', label:'晚上服药', icon:'🌙', time:'20:00', tip:'睡前'}
 ];
 
@@ -1311,14 +1409,8 @@ function importAllData(e) {
   e.target.value = '';
 }
 function saveAllData() {
-  DB.set('todos', todoData);
-  DB.set('checkins', checkinData);
-  DB.set('diary', diaryData);
-  DB.set('sales', salesData);
-  DB.set('students', studentData);
-  DB.set('accounts', accountData);
-  DB.set('funds', fundData);
-  DB.set('copywriting', copyData);
+  writeAllLocal();
+  if(Sync.enabled) { Sync.push().catch(e=>console.warn('[云同步] 推送失败:', e)); }
 }
 function refreshCurrentSection() {
   const activeSection = document.querySelector('.section.active')?.id || 'section-plan';
@@ -1336,7 +1428,11 @@ function refreshCurrentSection() {
 }
 
 // ==================== 初始化 ====================
+Sync.init();
 renderTodos();
+if(Sync.enabled) {
+  Sync.pull().then(ok=>{ if(ok) refreshCurrentSection(); }).catch(e=>console.warn('[云同步] 拉取失败:', e));
+}
 </script>
 </body>
 </html>
