@@ -170,30 +170,30 @@ tr:hover td { background:#faf9f7; }
 .todo-del { color:var(--text-light); font-size:14px; opacity:0; transition:opacity 0.2s; }
 .todo-item:hover .todo-del { opacity:0.6; }
 
-/* 英语学习 - 闪卡 */
-.vocab-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
-.flashcard {
-  background:var(--card-bg); border-radius:10px; padding:16px 12px;
-  box-shadow:var(--shadow); cursor:pointer; transition:all 0.25s;
-  text-align:center; min-height:90px; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; user-select:none;
-  border:2px solid transparent;
+/* 吃药打卡 */
+.checkin-card {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:var(--card-bg); border-radius:10px; padding:14px 16px;
+  box-shadow:var(--shadow); margin-bottom:10px; border-left:4px solid var(--primary);
+  transition:all 0.2s;
 }
-.flashcard:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,0.1); }
-.flashcard.flipped { border-color:var(--primary); background:#FAFBF7; }
-.flashcard.learned { opacity:0.5; border-color:var(--success); }
-.flashcard .fc-word { font-weight:700; font-size:14px; color:var(--text); transition:all 0.2s; }
-.flashcard.flipped .fc-word { color:var(--primary); }
-.flashcard .fc-reveal { display:none; font-size:12px; color:var(--text-mid); margin-top:6px; line-height:1.6; }
-.flashcard.flipped .fc-reveal { display:block; }
-.flashcard .fc-pron { color:var(--accent); font-size:12px; font-style:italic; }
-.flashcard .fc-meaning { font-weight:600; color:var(--primary); font-size:13px; margin-top:2px; }
-.flashcard .fc-example { color:var(--text-light); font-size:11px; margin-top:2px; }
-.flashcard .fc-tags { display:flex; gap:4px; margin-top:6px; justify-content:center; }
-.flashcard .fc-tag { font-size:10px; padding:2px 6px; border-radius:8px; }
-.flashcard .fc-tag.travel { background:#f0f4ff; color:#5B8DBE; }
-.flashcard .fc-tag.wine { background:#EDF3E8; color:var(--primary); }
-.flashcard .fc-tag.learned-tag { background:#E8F5EE; color:var(--success); }
+.checkin-card.done { border-left-color:var(--success); background:#F4FAF6; }
+.ci-left { display:flex; align-items:center; gap:12px; }
+.ci-icon { font-size:28px; line-height:1; }
+.ci-label { font-weight:600; font-size:15px; color:var(--text); }
+.ci-tip { font-size:12px; color:var(--text-light); margin-top:2px; }
+.ci-right { display:flex; align-items:center; gap:10px; }
+.ci-btn {
+  background:var(--primary); color:#fff; border:none; border-radius:8px;
+  padding:8px 16px; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s;
+}
+.ci-btn:hover { background:var(--primary-dark); transform:translateY(-1px); }
+.ci-time { font-size:14px; font-weight:600; color:var(--success); }
+.ci-undo { background:none; border:none; color:var(--text-light); font-size:12px; cursor:pointer; text-decoration:underline; }
+.ci-undo:hover { color:var(--accent); }
+.stat-box { flex:1; background:var(--card-bg); border-radius:10px; padding:14px; text-align:center; box-shadow:var(--shadow); }
+.stat-num { font-size:26px; font-weight:700; color:var(--primary); }
+.stat-label { font-size:12px; color:var(--text-light); margin-top:4px; }
 
 /* 日历 */
 .calendar { background:var(--card-bg); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); }
@@ -231,7 +231,9 @@ tr:hover td { background:#faf9f7; }
 .calendar-day.today.has-data::after { background:#fff; }
 
 @media (max-width:480px) {
-  .vocab-grid { grid-template-columns:repeat(2,1fr); }
+  .checkin-card { padding:12px 14px; }
+  .ci-icon { font-size:24px; }
+  .ci-btn { padding:7px 14px; font-size:13px; }
   .calendar-day { font-size:11px; min-height:30px; }
 }
 
@@ -308,8 +310,8 @@ tr:hover td { background:#faf9f7; }
     <div class="nav-item active" data-section="plan">
       <span class="nav-icon">✅</span><span class="nav-label">计划</span>
     </div>
-    <div class="nav-item" data-section="english">
-      <span class="nav-icon">📖</span><span class="nav-label">英语</span>
+    <div class="nav-item" data-section="checkin">
+      <span class="nav-icon">💊</span><span class="nav-label">打卡</span>
     </div>
     <div class="nav-item" data-section="diary">
       <span class="nav-icon">📝</span><span class="nav-label">日记</span>
@@ -354,8 +356,8 @@ tr:hover td { background:#faf9f7; }
         <div class="sidebar-item" data-section="plan" >
           <span class="s-icon">✅</span><span class="s-label">每日计划</span>
         </div>
-        <div class="sidebar-item" data-section="english" >
-          <span class="s-icon">📖</span><span class="s-label">英语学习</span>
+        <div class="sidebar-item" data-section="checkin" >
+          <span class="s-icon">💊</span><span class="s-label">吃药打卡</span>
         </div>
         <div class="sidebar-item" data-section="diary" >
           <span class="s-icon">📝</span><span class="s-label">日记</span>
@@ -402,11 +404,22 @@ tr:hover td { background:#faf9f7; }
         </div>
       </div>
 
-      <!-- 2. 英语学习 -->
-      <div class="section" id="section-english">
+      <!-- 2. 吃药打卡 -->
+      <div class="section" id="section-checkin">
+        <div class="cal-toggle" onclick="toggleCalendar('checkinCalWrap')">
+          <span class="cal-toggle-icon">📅</span> 查看日历 <span class="cal-toggle-arrow" id="checkinCalArrow">▾</span>
+        </div>
+        <div class="cal-wrapper" id="checkinCalWrap" style="display:none;">
+          <div id="checkinCalendar" class="calendar"></div>
+        </div>
         <div class="card">
-          <div class="card-title"><span>📖 每日词汇</span><span style="font-size:12px;color:var(--text-light);">点击卡片查看释义</span></div>
-          <div class="vocab-grid" id="vocabGrid"></div>
+          <div class="card-title"><span id="checkinDateTitle">💊 吃药打卡</span></div>
+          <div id="checkinProgress" style="margin-bottom:14px;"></div>
+          <div id="checkinList"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>📈 打卡统计</span></div>
+          <div id="checkinStats" style="display:flex;gap:16px;"></div>
         </div>
       </div>
 
@@ -540,8 +553,9 @@ let todoData=DB.get('todos',{}), currentPlanDate=todayStr();
 let planCalendarDate=todayStr(), diaryCalendarDate=todayStr();
 let planCalMonth=new Date().getFullYear()*100+(new Date().getMonth()+1);
 let diaryCalMonth=new Date().getFullYear()*100+(new Date().getMonth()+1);
-let vocabProgress = DB.get('vocabProgress', { dailyAssignments:{}, learnedWords:[] });
-let flippedCards = {};
+let checkinData=DB.get('checkins',{}), currentCheckinDate=todayStr();
+let checkinCalMonth=new Date().getFullYear()*100+(new Date().getMonth()+1);
+let checkinCalendarDate=todayStr();
 let diaryData=DB.get('diary',{}), currentDiaryDate=todayStr(), diaryTimer=null;
 let salesData=DB.get('sales',[]);
 let studentData=DB.get('students',[]), studentFilter='all';
@@ -550,7 +564,7 @@ let copyData=DB.get('copywriting',[]);
 
 // ==================== 导航 ====================
 const sectionTitles = {
-  plan:'每日计划', english:'英语学习', diary:'日记',
+  plan:'每日计划', checkin:'吃药打卡', diary:'日记',
   sales:'销售记录', students:'学员招生', finance:'资金规划', copywriting:'文案备忘'
 };
 // 切换模块
@@ -560,7 +574,7 @@ function switchToSection(sec) {
   document.getElementById('pageTitle').textContent=sectionTitles[sec];
   syncNavActive(sec);
   if(sec==='plan') { renderTodos(); }
-  if(sec==='english') renderVocab();
+  if(sec==='checkin') renderCheckin();
   if(sec==='diary') { renderDiary(); }
   if(sec==='sales') renderSales();
   if(sec==='students') renderStudents();
@@ -588,12 +602,14 @@ function toggleSidebar(){
 }
 function toggleCalendar(wrapId) {
   const wrap = document.getElementById(wrapId);
-  const arrowId = wrapId === 'planCalWrap' ? 'planCalArrow' : 'diaryCalArrow';
+  let arrowId = 'planCalArrow', render = renderPlanCalendar;
+  if(wrapId==='diaryCalWrap') { arrowId='diaryCalArrow'; render=renderDiaryCalendar; }
+  else if(wrapId==='checkinCalWrap') { arrowId='checkinCalArrow'; render=renderCheckinCalendar; }
   const arrow = document.getElementById(arrowId);
   if (wrap.style.display === 'none') {
     wrap.style.display = 'block';
     arrow.classList.add('open');
-    if (wrapId === 'planCalWrap') renderPlanCalendar(); else renderDiaryCalendar();
+    render();
   } else {
     wrap.style.display = 'none';
     arrow.classList.remove('open');
@@ -664,222 +680,105 @@ function renderTodos() {
     </div>`).join('');
 }
 
-// ==================== 2. 英语学习 ====================
-// 内置词汇库
-const VOCAB_LIBRARY = [
-  // 旅游英语 60 词
-  {word:'Boarding pass',meaning:'登机牌',example:'Please have your boarding pass ready.',type:'travel'},
-  {word:'Departure',meaning:'出发',example:'Our departure time is 3 PM.',type:'travel'},
-  {word:'Arrival',meaning:'到达',example:'The arrival gate is B12.',type:'travel'},
-  {word:'Layover',meaning:'中转',example:'We have a 2-hour layover in Dubai.',type:'travel'},
-  {word:'Customs',meaning:'海关',example:'You need to declare at customs.',type:'travel'},
-  {word:'Currency exchange',meaning:'货币兑换',example:'Where can I find a currency exchange?',type:'travel'},
-  {word:'Check-in',meaning:'值机',example:'Online check-in saves time.',type:'travel'},
-  {word:'Carry-on luggage',meaning:'随身行李',example:'Your carry-on must fit in the overhead bin.',type:'travel'},
-  {word:'Itinerary',meaning:'行程',example:'Here is your travel itinerary.',type:'travel'},
-  {word:'Souvenir',meaning:'纪念品',example:'I bought some souvenirs at the market.',type:'travel'},
-  {word:'Accommodation',meaning:'住宿',example:'I booked accommodation near the beach.',type:'travel'},
-  {word:'Reservation',meaning:'预订',example:'I have a reservation under the name Penny.',type:'travel'},
-  {word:'Checkout',meaning:'退房',example:'Checkout time is 11 AM.',type:'travel'},
-  {word:'Tip',meaning:'小费',example:'A 15% tip is standard here.',type:'travel'},
-  {word:'Receipt',meaning:'收据',example:'Could I get a receipt, please?',type:'travel'},
-  {word:'Passport',meaning:'护照',example:'May I see your passport, please?',type:'travel'},
-  {word:'Visa',meaning:'签证',example:'Do I need a visa to enter?',type:'travel'},
-  {word:'Gate',meaning:'登机口',example:'Your flight departs from gate 12.',type:'travel'},
-  {word:'Delay',meaning:'延误',example:'The flight is delayed by one hour.',type:'travel'},
-  {word:'Baggage claim',meaning:'行李提取',example:'Baggage claim is on the first floor.',type:'travel'},
-  {word:'Duty-free',meaning:'免税',example:'I bought perfume at the duty-free shop.',type:'travel'},
-  {word:'How much is it?',meaning:'多少钱？',example:'How much is this scarf?',type:'travel'},
-  {word:'I\'d like to order',meaning:'我想点餐',example:'I\'d like to order the steak, please.',type:'travel'},
-  {word:'The bill, please',meaning:'买单',example:'Excuse me, the bill, please.',type:'travel'},
-  {word:'Keep the change',meaning:'不用找了',example:'Keep the change. Thank you!',type:'travel'},
-  {word:'Single room',meaning:'单人间',example:'I\'d like a single room for two nights.',type:'travel'},
-  {word:'Double room',meaning:'双人间',example:'Do you have a double room available?',type:'travel'},
-  {word:'Breakfast included',meaning:'含早餐',example:'Is breakfast included in the price?',type:'travel'},
-  {word:'City center',meaning:'市中心',example:'How far is the city center?',type:'travel'},
-  {word:'Tourist attraction',meaning:'旅游景点',example:'What is the most popular tourist attraction here?',type:'travel'},
-  {word:'Map',meaning:'地图',example:'Could I have a map of the city?',type:'travel'},
-  {word:'Straight ahead',meaning:'直走',example:'Go straight ahead for two blocks.',type:'travel'},
-  {word:'Turn left',meaning:'左转',example:'Turn left at the traffic light.',type:'travel'},
-  {word:'Turn right',meaning:'右转',example:'Turn right after the bridge.',type:'travel'},
-  {word:'How far?',meaning:'多远？',example:'How far is the train station?',type:'travel'},
-  {word:'Train station',meaning:'火车站',example:'The train station is 10 minutes away.',type:'travel'},
-  {word:'Subway',meaning:'地铁',example:'Take the subway to Times Square.',type:'travel'},
-  {word:'Taxi',meaning:'出租车',example:'Let\'s take a taxi to the hotel.',type:'travel'},
-  {word:'Ticket',meaning:'票',example:'Can I buy a ticket on the bus?',type:'travel'},
-  {word:'One-way',meaning:'单程',example:'I\'d like a one-way ticket, please.',type:'travel'},
-  {word:'Round-trip',meaning:'往返',example:'A round-trip ticket is cheaper.',type:'travel'},
-  {word:'Platform',meaning:'站台',example:'The train departs from platform 3.',type:'travel'},
-  {word:'Pharmacy',meaning:'药店',example:'Is there a pharmacy nearby?',type:'travel'},
-  {word:'Hospital',meaning:'医院',example:'I need to go to the hospital.',type:'travel'},
-  {word:'I feel sick',meaning:'我不舒服',example:'I feel sick. Can you call a doctor?',type:'travel'},
-  {word:'Allergy',meaning:'过敏',example:'I have a peanut allergy.',type:'travel'},
-  {word:'Vegetarian',meaning:'素食',example:'Do you have vegetarian options?',type:'travel'},
-  {word:'Menu',meaning:'菜单',example:'Can I see the menu, please?',type:'travel'},
-  {word:'Delicious',meaning:'美味的',example:'This dish is absolutely delicious!',type:'travel'},
-  {word:'Where is the restroom?',meaning:'洗手间在哪？',example:'Excuse me, where is the restroom?',type:'travel'},
-  {word:'I have a reservation',meaning:'我有预订',example:'Hi, I have a reservation at 7 PM.',type:'travel'},
-  {word:'Lost and found',meaning:'失物招领',example:'I lost my bag. Where is the lost and found?',type:'travel'},
-  {word:'Emergency',meaning:'紧急情况',example:'Call the police! This is an emergency.',type:'travel'},
-  {word:'Destination',meaning:'目的地',example:'What is your final destination?',type:'travel'},
-  {word:'Transfer',meaning:'换乘',example:'You need to transfer at Central Station.',type:'travel'},
-  {word:'Express',meaning:'快车/特快',example:'Take the express train to the airport.',type:'travel'},
-  {word:'Domestic',meaning:'国内',example:'Domestic flights are from Terminal 1.',type:'travel'},
-  {word:'International',meaning:'国际',example:'International departures are upstairs.',type:'travel'},
-  {word:'Sightseeing',meaning:'观光',example:'We went sightseeing all day.',type:'travel'},
-  {word:'Local cuisine',meaning:'当地美食',example:'You must try the local cuisine.',type:'travel'},
-  // 葡萄酒专业 60 词
-  {word:'Tannin',meaning:'单宁',example:'This wine has soft, well-integrated tannins.',type:'wine'},
-  {word:'Body',meaning:'酒体',example:'Cabernet Sauvignon typically has a full body.',type:'wine'},
-  {word:'Aroma',meaning:'香气',example:'The aroma of dark berries fills the glass.',type:'wine'},
-  {word:'Vintage',meaning:'年份',example:'2015 was an exceptional vintage in Bordeaux.',type:'wine'},
-  {word:'Terroir',meaning:'风土',example:'The terroir of Burgundy gives Chardonnay its unique character.',type:'wine'},
-  {word:'Decant',meaning:'醒酒',example:'You should decant this red wine for about an hour.',type:'wine'},
-  {word:'Sommelier',meaning:'侍酒师',example:'The sommelier recommended a perfect pairing.',type:'wine'},
-  {word:'Varietal',meaning:'品种',example:'Malbec is the flagship varietal of Argentina.',type:'wine'},
-  {word:'Fermentation',meaning:'发酵',example:'Alcoholic fermentation turns sugar into alcohol.',type:'wine'},
-  {word:'Oak aging',meaning:'橡木桶陈酿',example:'Oak aging adds vanilla and spice notes.',type:'wine'},
-  {word:'Full-bodied',meaning:'全酒体',example:'Shiraz from Barossa Valley is rich and full-bodied.',type:'wine'},
-  {word:'Medium-bodied',meaning:'中等酒体',example:'This Pinot Noir is elegant and medium-bodied.',type:'wine'},
-  {word:'Light-bodied',meaning:'轻酒体',example:'Riesling is typically light-bodied and refreshing.',type:'wine'},
-  {word:'Dry',meaning:'干型',example:'This Sauvignon Blanc is crisp and dry.',type:'wine'},
-  {word:'Sweet',meaning:'甜型',example:'Sauternes is a lusciously sweet wine from Bordeaux.',type:'wine'},
-  {word:'Crisp',meaning:'爽脆的',example:'A crisp white wine pairs well with seafood.',type:'wine'},
-  {word:'Acidity',meaning:'酸度',example:'High acidity makes the wine taste fresh and lively.',type:'wine'},
-  {word:'Finish',meaning:'余味',example:'The finish lingers with hints of chocolate.',type:'wine'},
-  {word:'Bouquet',meaning:'酒香',example:'The bouquet reveals layers of red fruit and spice.',type:'wine'},
-  {word:'Legs',meaning:'挂杯',example:'The thick legs suggest high alcohol content.',type:'wine'},
-  {word:'Cork',meaning:'软木塞',example:'The cork crumbled when I tried to open the bottle.',type:'wine'},
-  {word:'Blend',meaning:'混酿',example:'This Bordeaux blend combines Merlot and Cabernet.',type:'wine'},
-  {word:'Residual sugar',meaning:'残糖',example:'The residual sugar balances the high acidity.',type:'wine'},
-  {word:'Malolactic fermentation',meaning:'苹果酸-乳酸发酵',example:'Malolactic fermentation softens the acidity in Chardonnay.',type:'wine'},
-  {word:'Lees',meaning:'酒泥',example:'Aging on lees adds creamy texture to the wine.',type:'wine'},
-  {word:'Racking',meaning:'换桶',example:'Racking separates the clear wine from the sediment.',type:'wine'},
-  {word:'Clarification',meaning:'澄清',example:'Egg whites are sometimes used for clarification.',type:'wine'},
-  {word:'Filtration',meaning:'过滤',example:'Some winemakers skip filtration for more flavor.',type:'wine'},
-  {word:'Bottling',meaning:'装瓶',example:'The wine is ready for bottling after aging.',type:'wine'},
-  {word:'Estate',meaning:'酒庄',example:'This wine is produced at our family estate.',type:'wine'},
-  {word:'Appellation',meaning:'产区命名',example:'The appellation system ensures quality and origin.',type:'wine'},
-  {word:'Old vine',meaning:'老藤',example:'Old vine Zinfandel produces concentrated flavors.',type:'wine'},
-  {word:'Yield',meaning:'产量',example:'Low yield often results in higher quality grapes.',type:'wine'},
-  {word:'Harvest',meaning:'采摘',example:'The harvest usually starts in early September.',type:'wine'},
-  {word:'Destemming',meaning:'去梗',example:'Destemming removes the stems before crushing.',type:'wine'},
-  {word:'Crushing',meaning:'破皮',example:'Gentle crushing releases the juice from the grapes.',type:'wine'},
-  {word:'Maceration',meaning:'浸渍',example:'Extended maceration extracts more color and tannin.',type:'wine'},
-  {word:'Pressing',meaning:'压榨',example:'Pressing separates the juice from the skins.',type:'wine'},
-  {word:'Punch down',meaning:'踩皮/压帽',example:'Punch down ensures the cap stays moist during fermentation.',type:'wine'},
-  {word:'Pump over',meaning:'淋皮',example:'Pump over circulates the juice over the cap.',type:'wine'},
-  {word:'Barrel',meaning:'橡木桶',example:'French oak barrels are prized for their subtle flavors.',type:'wine'},
-  {word:'Toast',meaning:'烘烤(木桶)',example:'Medium toast barrels add vanilla and caramel notes.',type:'wine'},
-  {word:'Bung',meaning:'桶塞',example:'The bung is removed for topping up the barrel.',type:'wine'},
-  {word:'Riddling',meaning:'转瓶(香槟工艺)',example:'Riddling collects the yeast in the neck of the bottle.',type:'wine'},
-  {word:'Disgorgement',meaning:'除渣',example:'Disgorgement removes the frozen yeast plug.',type:'wine'},
-  {word:'Dosage',meaning:'补液',example:'The dosage determines the final sweetness of Champagne.',type:'wine'},
-  {word:'Traditional method',meaning:'传统法(起泡酒)',example:'Champagne is made using the traditional method.',type:'wine'},
-  {word:'Carbonic maceration',meaning:'二氧化碳浸渍',example:'Carbonic maceration gives Beaujolais its fruity character.',type:'wine'},
-  {word:'Skin contact',meaning:'皮渣接触',example:'Skin contact adds color and texture to orange wine.',type:'wine'},
-  {word:'Lees stirring',meaning:'搅桶',example:'Lees stirring adds richness to Chardonnay.',type:'wine'},
-  {word:'Oxidation',meaning:'氧化',example:'Too much oxidation can spoil the wine.',type:'wine'},
-  {word:'Reduction',meaning:'还原',example:'Reduction can create struck match aromas in the wine.',type:'wine'},
-  {word:'Cork taint',meaning:'软木塞污染',example:'This wine has cork taint. It smells like wet cardboard.',type:'wine'},
-  {word:'Sediment',meaning:'沉淀物',example:'Decanting helps separate the wine from the sediment.',type:'wine'},
-  {word:'Breathing',meaning:'醒酒(呼吸)',example:'Let the wine breathe for 30 minutes before serving.',type:'wine'},
-  {word:'Palate',meaning:'口感',example:'On the palate, the wine is smooth and balanced.',type:'wine'},
-  {word:'Nose',meaning:'闻香',example:'On the nose, there are hints of cherry and leather.',type:'wine'},
-  {word:'Complexity',meaning:'复杂度',example:'A great wine has layers of complexity.',type:'wine'},
-  {word:'Balance',meaning:'平衡',example:'The balance between fruit and acidity is perfect.',type:'wine'},
-  {word:'Minerality',meaning:'矿物感',example:'Chablis is known for its steely minerality.',type:'wine'},
+// ==================== 2. 吃药打卡 ====================
+const CHECKIN_ITEMS = [
+  {key:'morning', label:'早晨服药', icon:'🌅', time:'08:00', tip:'起床后'},
+  {key:'noon',    label:'中午服药', icon:'☀️', time:'12:00', tip:'午饭后'},
+  {key:'evening', label:'晚上服药', icon:'🌙', time:'20:00', tip:'睡前'}
 ];
 
-function saveVocabProgress() { DB.set('vocabProgress', vocabProgress); }
+function saveCheckin() { DB.set('checkins', checkinData); renderCheckinCalendar(); }
 
-function getTodayVocab() {
-  const today=todayStr();
-  if(!vocabProgress.dailyAssignments[today]) {
-    const learned=new Set(vocabProgress.learnedWords);
-    let travel=VOCAB_LIBRARY.filter(w=>w.type==='travel'&&!learned.has(w.word));
-    let wine=VOCAB_LIBRARY.filter(w=>w.type==='wine'&&!learned.has(w.word));
-    if(travel.length===0) {
-      vocabProgress.learnedWords=vocabProgress.learnedWords.filter(n=>!VOCAB_LIBRARY.find(w=>w.word===n&&w.type==='travel'));
-      travel=VOCAB_LIBRARY.filter(w=>w.type==='travel');
-    }
-    if(wine.length===0) {
-      vocabProgress.learnedWords=vocabProgress.learnedWords.filter(n=>!VOCAB_LIBRARY.find(w=>w.word===n&&w.type==='wine'));
-      wine=VOCAB_LIBRARY.filter(w=>w.type==='wine');
-    }
-    const todayWords=[...travel.slice(0,5),...wine.slice(0,3)];
-    vocabProgress.dailyAssignments[today]=todayWords.map(w=>w.word);
-    saveVocabProgress();
-  }
-  const wordNames=vocabProgress.dailyAssignments[today];
-  return wordNames.map(name=>{
-    const w=VOCAB_LIBRARY.find(v=>v.word===name);
-    return w?{...w,learned:vocabProgress.learnedWords.includes(name)}:null;
-  }).filter(Boolean);
+function doCheckin(key) {
+  const ds = currentCheckinDate;
+  if(!checkinData[ds]) checkinData[ds] = {};
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  checkinData[ds][key] = hh+':'+mm;
+  saveCheckin();
+  renderCheckin();
 }
 
-function toggleFlashcard(word) {
-  if(flippedCards[word]) { delete flippedCards[word]; }
-  else {
-    flippedCards[word]=true;
-    // 朗读单词
-    if('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const u=new SpeechSynthesisUtterance(word);
-      u.lang='en-US'; u.rate=0.85;
-      window.speechSynthesis.speak(u);
-    }
+function undoCheckin(key) {
+  const ds = currentCheckinDate;
+  if(checkinData[ds]) {
+    delete checkinData[ds][key];
+    if(Object.keys(checkinData[ds]).length===0) delete checkinData[ds];
   }
-  renderVocab();
+  saveCheckin();
+  renderCheckin();
 }
 
-function markVocabLearned(word) {
-  if(!vocabProgress.learnedWords.includes(word)) {
-    vocabProgress.learnedWords.push(word);
-    saveVocabProgress();
+// 连续打卡天数（从今天往前，每天三次都完成）
+function checkinStreak() {
+  let streak = 0;
+  let d = new Date();
+  while(true) {
+    const ds = d.toISOString().slice(0,10);
+    const rec = checkinData[ds];
+    const done = rec && CHECKIN_ITEMS.every(it=>rec[it.key]);
+    if(done) { streak++; d.setDate(d.getDate()-1); }
+    else break;
   }
-  renderVocab();
+  return streak;
 }
 
-function renderVocab() {
-  const vocab=getTodayVocab();
-  if(vocab.length===0) {
-    document.getElementById('vocabGrid').innerHTML='<div class="empty"><div class="empty-icon">📖</div>暂无词汇</div>';
-    return;
-  }
-  document.getElementById('vocabGrid').innerHTML=vocab.map(v=>{
-    const isFlipped=flippedCards[v.word];
-    const cls=['flashcard'];
-    if(isFlipped) cls.push('flipped');
-    if(v.learned) cls.push('learned');
-    return `<div class="${cls.join(' ')}" data-vocab="${encodeURIComponent(v.word)}">
-      <div class="fc-word">${v.word}</div>
-      <div class="fc-reveal">
-        <div class="fc-meaning">${v.meaning}</div>
-        ${v.example?`<div class="fc-example">${v.example}</div>`:''}
-        <div class="fc-tags">
-          <span class="fc-tag ${v.type}">${v.type==='travel'?'旅游':'葡萄酒'}</span>
-          <span class="fc-tag learned-tag" data-mark="${encodeURIComponent(v.word)}" style="cursor:pointer;">
-            ${v.learned?'✅ 已学':'标记已学'}
-          </span>
+function renderCheckin() {
+  const ds = currentCheckinDate;
+  const rec = checkinData[ds] || {};
+  const isToday = ds === todayStr();
+  document.getElementById('checkinDateTitle').textContent = (isToday?'今日 ':'') + '💊 吃药打卡 · ' + ds;
+  const doneCount = CHECKIN_ITEMS.filter(it=>rec[it.key]).length;
+  const pct = Math.round(doneCount/CHECKIN_ITEMS.length*100);
+  document.getElementById('checkinProgress').innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-mid);margin-bottom:6px;">
+      <span>今日进度</span><span><b style="color:var(--primary);">${doneCount}</b>/${CHECKIN_ITEMS.length}</span>
+    </div>
+    <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:${doneCount===CHECKIN_ITEMS.length?'#7cb342':'var(--primary)'};border-radius:4px;transition:width .3s;"></div>
+    </div>`;
+  document.getElementById('checkinList').innerHTML = CHECKIN_ITEMS.map(it=>{
+    const done = !!rec[it.key];
+    return `<div class="checkin-card ${done?'done':''}">
+      <div class="ci-left">
+        <span class="ci-icon">${it.icon}</span>
+        <div>
+          <div class="ci-label">${it.label}</div>
+          <div class="ci-tip">建议 ${it.time} · ${it.tip}</div>
         </div>
+      </div>
+      <div class="ci-right">
+        ${done
+          ? `<span class="ci-time">✓ ${rec[it.key]}</span><button class="ci-undo" onclick="undoCheckin('${it.key}')">撤销</button>`
+          : `<button class="ci-btn" onclick="doCheckin('${it.key}')">✓ 打卡</button>`}
       </div>
     </div>`;
   }).join('');
+  const streak = checkinStreak();
+  const totalDays = Object.keys(checkinData).filter(k=>CHECKIN_ITEMS.every(it=>checkinData[k] && checkinData[k][it.key])).length;
+  document.getElementById('checkinStats').innerHTML = `
+    <div class="stat-box"><div class="stat-num">${streak}</div><div class="stat-label">连续打卡(天)</div></div>
+    <div class="stat-box"><div class="stat-num">${totalDays}</div><div class="stat-label">完成天数</div></div>`;
 }
 
-// 闪卡事件委托
-document.getElementById('vocabGrid').addEventListener('click', function(e) {
-  const card = e.target.closest('.flashcard');
-  if (!card) return;
-  if (e.target.closest('[data-mark]')) {
-    const word = decodeURIComponent(e.target.closest('[data-mark]').dataset.mark);
-    markVocabLearned(word);
-    return;
-  }
-  const word = decodeURIComponent(card.dataset.vocab);
-  toggleFlashcard(word);
-});
+function renderCheckinCalendar() {
+  if(document.getElementById('checkinCalWrap').style.display==='none') return;
+  const data = {};
+  Object.keys(checkinData).forEach(d=>{
+    if(checkinData[d] && CHECKIN_ITEMS.every(it=>checkinData[d][it.key])) data[d]=true;
+  });
+  renderCalendar('checkinCalendar', checkinCalMonth, checkinCalendarDate, data, 'selectCheckinDate');
+}
+
+function selectCheckinDate(ds) {
+  currentCheckinDate = ds;
+  checkinCalendarDate = ds;
+  const y=parseInt(ds.slice(0,4)), m=parseInt(ds.slice(5,7));
+  checkinCalMonth = y*100+m;
+  renderCheckinCalendar();
+  renderCheckin();
+}
 
 // ==================== 3. 日记 ====================
 function saveDiaryData() { DB.set('diary',diaryData); renderDiaryCalendar(); }
@@ -992,6 +891,11 @@ function changeCalMonth(containerId, dir) {
     m+=dir; if(m>12){m=1;y++;}if(m<1){m=12;y--;}
     planCalMonth=y*100+m;
     renderPlanCalendar();
+  } else if(containerId==='checkinCalendar') {
+    let y=Math.floor(checkinCalMonth/100), m=checkinCalMonth%100;
+    m+=dir; if(m>12){m=1;y++;}if(m<1){m=12;y--;}
+    checkinCalMonth=y*100+m;
+    renderCheckinCalendar();
   } else {
     let y=Math.floor(diaryCalMonth/100), m=diaryCalMonth%100;
     m+=dir; if(m>12){m=1;y++;}if(m<1){m=12;y--;}
@@ -1368,7 +1272,7 @@ function exportAllData() {
   const allData = {
     version: 1,
     exportedAt: new Date().toISOString(),
-    todoData, vocabProgress,
+    todoData, checkinData,
     diaryData, salesData, studentData,
     accountData, fundData, copyData
   };
@@ -1389,7 +1293,7 @@ function importAllData(e) {
       const allData = JSON.parse(ev.target.result);
       if(!allData.version) throw new Error('无效的备份文件');
       todoData = allData.todoData || {};
-      vocabProgress = allData.vocabProgress || { dailyAssignments:{}, learnedWords:[] };
+      checkinData = allData.checkinData || {};
       diaryData = allData.diaryData || {};
       salesData = allData.salesData || [];
       studentData = allData.studentData || [];
@@ -1408,7 +1312,7 @@ function importAllData(e) {
 }
 function saveAllData() {
   DB.set('todos', todoData);
-  DB.set('vocabProgress', vocabProgress);
+  DB.set('checkins', checkinData);
   DB.set('diary', diaryData);
   DB.set('sales', salesData);
   DB.set('students', studentData);
@@ -1421,7 +1325,7 @@ function refreshCurrentSection() {
   const sec = activeSection.replace('section-','');
   const refreshMap = {
     'plan': renderTodos,
-    'english': renderVocab,
+    'checkin': renderCheckin,
     'diary': function(){renderDiary();},
     'sales': renderSales,
     'students': renderStudents,
