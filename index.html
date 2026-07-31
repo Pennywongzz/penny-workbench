@@ -375,7 +375,7 @@ tr:hover td { background:#faf9f7; }
           <span class="s-icon">💰</span><span class="s-label">资金规划</span>
         </div>
         <div style="height:1px;background:var(--border);margin:8px 14px;"></div>
-        <div class="sidebar-item" onclick="openSyncSettings()" style="cursor:pointer;">
+        <div class="sidebar-item sidebar-action" onclick="openSyncSettings();event.stopPropagation();" style="cursor:pointer;">
           <span class="s-icon">☁️</span><span class="s-label">云同步设置</span>
         </div>
       </div>
@@ -661,6 +661,7 @@ document.querySelectorAll('.nav-item').forEach(function(item){
   item.addEventListener('click',function(){switchToSection(item.dataset.section);});
 });
 document.querySelectorAll('.sidebar-item').forEach(function(item){
+  if(item.classList.contains('sidebar-action')) return;
   item.addEventListener('click',function(){switchToSection(item.dataset.section);closeSidebar();});
 });
 function toggleSidebar(){
