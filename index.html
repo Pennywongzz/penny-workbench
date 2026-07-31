@@ -549,7 +549,9 @@ const DB = {
 };
 
 // ==================== 云同步（Supabase / PostgREST） ====================
-// 直接调用 Supabase 的 REST API，无需引入外部 SDK；配置保存在本地（pw_sync）。
+// 直接调用 Supabase 的 REST API，无需引入外部 SDK；凭证内置，打开即自动同步。
+const SUPABASE_URL = 'https://idupkjxzdqdonsplwdvw.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_QecZrusJWzRKvugNIfaH0g_pdTgmbxS';
 function writeAllLocal() {
   DB.set('todos', todoData); DB.set('checkins', checkinData); DB.set('diary', diaryData);
   DB.set('sales', salesData); DB.set('students', studentData); DB.set('accounts', accountData);
@@ -573,8 +575,10 @@ function applyCloudData(cloud) {
 const Sync = {
   cfg: null, enabled: false, lastSync: null,
   init() {
-    this.cfg = DB.get('sync', null);
-    this.enabled = !!(this.cfg && this.cfg.url && this.cfg.key);
+    let s = DB.get('sync', null);
+    if(!s) { s = {url: SUPABASE_URL, key: SUPABASE_ANON}; DB.set('sync', s); }
+    this.cfg = s;
+    this.enabled = !!(s && s.url && s.key && !s.disabled);
     this.lastSync = DB.get('lastSync', null);
   },
   _headers() {
