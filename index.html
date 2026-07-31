@@ -741,7 +741,7 @@ function doSyncPush(){ if(!Sync.enabled){alert('请先填写并保存 URL 与 ke
 function doSyncPull(){ if(!Sync.enabled){alert('请先填写并保存 URL 与 key');return;} Sync.pull().then(ok=>{ if(ok){refreshCurrentSection(); setSyncStatus('拉取成功 ✓ '+new Date().toLocaleString('zh-CN'));} else setSyncStatus('云端暂无数据，已保持本地'); }).catch(e=>setSyncStatus('拉取失败：'+e.message)); }
 
 // ==================== 1. 每日计划 ====================
-function saveTodos() { DB.set('todos',todoData); renderPlanCalendar(); }
+function saveTodos() { DB.set('todos',todoData); renderPlanCalendar(); syncPush(); }
 function changePlanDate(dir) {
   if(dir===0) currentPlanDate=todayStr();
   else { const d=new Date(currentPlanDate); d.setDate(d.getDate()+dir); currentPlanDate=d.toISOString().slice(0,10); }
@@ -791,7 +791,7 @@ const CHECKIN_ITEMS = [
   {key:'evening', label:'晚上服药', icon:'🌙', time:'20:00', tip:'睡前'}
 ];
 
-function saveCheckin() { DB.set('checkins', checkinData); renderCheckinCalendar(); }
+function saveCheckin() { DB.set('checkins', checkinData); renderCheckinCalendar(); syncPush(); }
 
 function doCheckin(key) {
   const ds = currentCheckinDate;
@@ -885,7 +885,7 @@ function selectCheckinDate(ds) {
 }
 
 // ==================== 3. 日记 ====================
-function saveDiaryData() { DB.set('diary',diaryData); renderDiaryCalendar(); }
+function saveDiaryData() { DB.set('diary',diaryData); renderDiaryCalendar(); syncPush(); }
 function changeDiaryDate(dir) {
   if(dir===0) currentDiaryDate=todayStr();
   else { const d=new Date(currentDiaryDate); d.setDate(d.getDate()+dir); currentDiaryDate=d.toISOString().slice(0,10); }
@@ -1041,7 +1041,7 @@ function renderDiaryCalendar() {
 }
 
 // ==================== 4. 销售记录 ====================
-function saveSales() { DB.set('sales',salesData); }
+function saveSales() { DB.set('sales',salesData); syncPush(); }
 function openSaleModal() {
   openModal('添加销售记录',`
     <div class="form-row">
@@ -1120,7 +1120,7 @@ function renderSales() {
 }
 
 // ==================== 5. 学员招生 ====================
-function saveStudents(){DB.set('students',studentData);}
+function saveStudents(){DB.set('students',studentData);syncPush();}
 function setStudentFilter(f){
   studentFilter=f;
   document.querySelectorAll('[data-sfilter]').forEach(b=>b.classList.remove('active'));
@@ -1192,8 +1192,8 @@ function renderStudents(){
 }
 
 // ==================== 6. 资金规划 ====================
-function saveAccounts(){DB.set('accounts',accountData);}
-function saveFunds(){DB.set('funds',fundData);}
+function saveAccounts(){DB.set('accounts',accountData);syncPush();}
+function saveFunds(){DB.set('funds',fundData);syncPush();}
 const accountIcons={'银行卡':'🏦','微信':'💚','支付宝':'💙','黄金':'🥇','基金':'📈','定期':'🔒','现金':'💵','其他':'💳'};
 
 function openAccountModal(){
@@ -1330,7 +1330,7 @@ function renderFinance(){
 }
 
 // ==================== 7. 文案备忘 ====================
-function saveCopy(){DB.set('copywriting',copyData);}
+function saveCopy(){DB.set('copywriting',copyData);syncPush();}
 function openCopyModal(){
   openModal('新建文案',`
     <div class="form-group"><label>文案内容</label><textarea id="copyContent" placeholder="在这里写文案..." style="min-height:160px;"></textarea></div>
@@ -1414,9 +1414,10 @@ function importAllData(e) {
   reader.readAsText(file);
   e.target.value = '';
 }
+function syncPush() { if(Sync.enabled) { Sync.push().catch(e=>console.warn('[云同步] 推送失败:', e)); } }
 function saveAllData() {
   writeAllLocal();
-  if(Sync.enabled) { Sync.push().catch(e=>console.warn('[云同步] 推送失败:', e)); }
+  syncPush();
 }
 function refreshCurrentSection() {
   const activeSection = document.querySelector('.section.active')?.id || 'section-plan';
