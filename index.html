@@ -637,6 +637,7 @@ const sectionTitles = {
 };
 // 切换模块
 function switchToSection(sec) {
+  if(!sec || !document.getElementById('section-'+sec)) { console.warn('[switchToSection] 无效模块:', sec); return; }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('section-'+sec).classList.add('active');
   document.getElementById('pageTitle').textContent=sectionTitles[sec];
