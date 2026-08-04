@@ -570,14 +570,28 @@ function mergeById(localArr, cloudArr) {
   cloudArr.forEach(x => { if(x && x.id) map.set(x.id, x); });
   return [...map.values()];
 }
-// 按日期键合并对象（todo/checkin/diary）
+// 按 key 浅合并对象（用于 checkin 的 {morning/noon/evening}、diary 的单条）
+function mergeObject(localObj, cloudObj) {
+  if(!cloudObj) return localObj;
+  if(!localObj) return cloudObj;
+  return Object.assign({}, localObj, cloudObj);
+}
+// 按日期键合并对象（todo/checkin/diary），智能识别内层类型：数组走 mergeById，对象走 mergeObject
 function mergeByDate(localObj, cloudObj) {
   if(!cloudObj) return localObj;
   if(!localObj) return cloudObj;
   const out = Object.assign({}, localObj);
   for(const k of Object.keys(cloudObj)) {
-    if(out[k]===undefined) out[k] = cloudObj[k];
-    else out[k] = mergeById(out[k], cloudObj[k]);
+    if(out[k]===undefined) { out[k] = cloudObj[k]; continue; }
+    const a = out[k], b = cloudObj[k];
+    if(Array.isArray(a) && Array.isArray(b)) {
+      out[k] = mergeById(a, b);
+    } else if(a && b && typeof a==='object' && typeof b==='object' && !Array.isArray(a) && !Array.isArray(b)) {
+      out[k] = mergeObject(a, b);
+    } else {
+      // 基本类型或类型不一致：云端覆盖
+      out[k] = b;
+    }
   }
   return out;
 }
