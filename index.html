@@ -556,30 +556,53 @@ function writeAllLocal() {
   DB.set('todos', todoData); DB.set('checkins', checkinData); DB.set('diary', diaryData);
   DB.set('sales', salesData); DB.set('students', studentData); DB.set('accounts', accountData);
   DB.set('funds', fundData); DB.set('copywriting', copyData);
+  DB.set('_lastchange', Date.now());
 }
 function collectAllData() {
   return { todoData, checkinData, diaryData, salesData, studentData, accountData, fundData, copyData };
 }
+// 按 id 合并数组：本地与云端都有的以云端为准，独有的都保留（避免拉取时清掉本地记录）
+function mergeById(localArr, cloudArr) {
+  if(!cloudArr) return localArr;
+  if(!localArr) return cloudArr;
+  const map = new Map();
+  localArr.forEach(x => { if(x && x.id) map.set(x.id, x); });
+  cloudArr.forEach(x => { if(x && x.id) map.set(x.id, x); });
+  return [...map.values()];
+}
+// 按日期键合并对象（todo/checkin/diary）
+function mergeByDate(localObj, cloudObj) {
+  if(!cloudObj) return localObj;
+  if(!localObj) return cloudObj;
+  const out = Object.assign({}, localObj);
+  for(const k of Object.keys(cloudObj)) {
+    if(out[k]===undefined) out[k] = cloudObj[k];
+    else out[k] = mergeById(out[k], cloudObj[k]);
+  }
+  return out;
+}
+// 合并式应用云端数据：保留本地独有内容，云端更新的部分覆盖过来（不再整体覆盖）
 function applyCloudData(cloud) {
   if(!cloud) return;
-  if(cloud.todoData!==undefined) todoData=cloud.todoData;
-  if(cloud.checkinData!==undefined) checkinData=cloud.checkinData;
-  if(cloud.diaryData!==undefined) diaryData=cloud.diaryData;
-  if(cloud.salesData!==undefined) salesData=cloud.salesData;
-  if(cloud.studentData!==undefined) studentData=cloud.studentData;
-  if(cloud.accountData!==undefined) accountData=cloud.accountData;
-  if(cloud.fundData!==undefined) fundData=cloud.fundData;
-  if(cloud.copyData!==undefined) copyData=cloud.copyData;
+  if(cloud.todoData!==undefined)     todoData     = mergeByDate(todoData, cloud.todoData);
+  if(cloud.checkinData!==undefined)  checkinData  = mergeByDate(checkinData, cloud.checkinData);
+  if(cloud.diaryData!==undefined)    diaryData    = mergeByDate(diaryData, cloud.diaryData);
+  if(cloud.salesData!==undefined)    salesData    = mergeById(salesData, cloud.salesData);
+  if(cloud.studentData!==undefined)  studentData  = mergeById(studentData, cloud.studentData);
+  if(cloud.accountData!==undefined)  accountData  = mergeById(accountData, cloud.accountData);
+  if(cloud.fundData!==undefined)     fundData     = mergeById(fundData, cloud.fundData);
+  if(cloud.copyData!==undefined)     copyData     = mergeById(copyData, cloud.copyData);
   writeAllLocal();
 }
 const Sync = {
-  cfg: null, enabled: false, lastSync: null,
+  cfg: null, enabled: false, lastSync: null, localTs: 0,
   init() {
     let s = DB.get('sync', null);
     if(!s) { s = {url: SUPABASE_URL, key: SUPABASE_ANON}; DB.set('sync', s); }
     this.cfg = s;
     this.enabled = !!(s && s.url && s.key && !s.disabled);
     this.lastSync = DB.get('lastSync', null);
+    this.localTs = Number(DB.get('_lastchange', 0)) || 0;
   },
   _headers() {
     return { 'apikey': this.cfg.key, 'Authorization': 'Bearer '+this.cfg.key,
@@ -591,6 +614,15 @@ const Sync = {
     const r = await fetch(`${this._base()}/rest/v1/workbench_data?select=id&limit=1`,
       {headers:{'apikey':this.cfg.key,'Authorization':'Bearer '+this.cfg.key}});
     return r.ok;
+  },
+  // 只取云端更新时间，用于决定拉取还是推送
+  async fetchMeta() {
+    if(!this.enabled) return null;
+    const r = await fetch(`${this._base()}/rest/v1/workbench_data?id=eq.penny&select=updated_at`,
+      {headers:{'apikey':this.cfg.key,'Authorization':'Bearer '+this.cfg.key}});
+    if(!r.ok) throw new Error('读取云端时间失败('+r.status+')');
+    const rows = await r.json();
+    return (rows && rows[0]) ? rows[0] : null;
   },
   async pull() {
     if(!this.enabled) return false;
@@ -608,6 +640,7 @@ const Sync = {
       { method:'POST', headers:this._headers(), body: JSON.stringify(payload) });
     if(!r.ok) throw new Error('推送失败('+r.status+')');
     this.lastSync=new Date().toISOString(); DB.set('lastSync', this.lastSync);
+    this.localTs = Date.now(); DB.set('_lastchange', this.localTs);
     return true;
   }
 };
@@ -1438,7 +1471,25 @@ function refreshCurrentSection() {
 Sync.init();
 renderTodos();
 if(Sync.enabled) {
-  Sync.pull().then(ok=>{ if(ok) refreshCurrentSection(); }).catch(e=>console.warn('[云同步] 拉取失败:', e));
+  // 智能同步：比较云端更新时间与本地最后修改时间，谁新用谁，避免刷新冲掉本地记录
+  (async () => {
+    try {
+      const meta = await Sync.fetchMeta();
+      if(!meta) {
+        // 云端无数据 -> 上传本地
+        await Sync.push();
+      } else if(meta.updated_at && Sync.localTs && new Date(meta.updated_at).getTime() > Sync.localTs) {
+        // 云端更新 -> 拉取（合并式，不会清掉本地独有内容）
+        await Sync.pull();
+      } else {
+        // 本地更新或时间相同 -> 上传本地，保证云端是最新的
+        await Sync.push();
+      }
+      refreshCurrentSection();
+    } catch(e) {
+      console.warn('[云同步] 初始化同步失败，仅使用本地数据:', e);
+    }
+  })();
 }
 </script>
 </body>
