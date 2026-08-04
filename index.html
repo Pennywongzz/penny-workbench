@@ -535,12 +535,22 @@ tr:hover td { background:#faf9f7; }
 </div>
 
 <script>
-// 调试：捕获 JS 错误并显示在页面上
-window.onerror=function(msg,url,line){
+// 调试：捕获 JS 错误并显示在页面上（尽量拿到堆栈）
+window.onerror=function(msg,url,line,col,error){
+  var detail = msg || '未知错误';
+  try { if(error && error.stack) detail += ' | '+String(error.stack).split('\n').slice(0,3).join(' / '); } catch(e){}
   var el=document.getElementById('error-display');
-  if(el){el.style.display='block';el.textContent='JS错误: '+msg+' (行'+line+')';}
-  console.error('JS Error:',msg,'at line',line);
+  if(el){el.style.display='block';el.textContent='JS错误: '+detail+' (行'+(line||0)+')';}
+  console.error('JS Error:',msg,'at line',line,'col',col, error);
 };
+window.addEventListener('unhandledrejection', function(ev){
+  var r = ev.reason;
+  var msg = (r && r.message) ? r.message : String(r);
+  var stk = (r && r.stack) ? String(r.stack).split('\n').slice(0,2).join(' / ') : '';
+  var el=document.getElementById('error-display');
+  if(el){el.style.display='block';el.textContent='异步错误: '+msg+(stk?' | '+stk:'')+' (行0)';}
+  console.error('UnhandledRejection:', r);
+});
 console.log('[DEBUG] Script started');
 // ==================== 工具函数 ====================
 const DB = {
@@ -818,7 +828,9 @@ function deleteTodo(id) {
 function renderTodos() {
   const isToday=currentPlanDate===todayStr();
   document.getElementById('planDateTitle').textContent=isToday?'今日计划':fmtDate(currentPlanDate)+' 计划';
-  const list=todoData[currentPlanDate]||[];
+  // 防御：确保是数组（极端情况下localStorage被污染成对象/字符串）
+  const raw = todoData[currentPlanDate];
+  const list = Array.isArray(raw) ? raw : [];
   if(list.length===0) {
     document.getElementById('todoList').innerHTML='<div class="empty"><div class="empty-icon">✅</div>今天还没有计划，添加一些待办吧</div>';
     return;
@@ -1482,26 +1494,24 @@ function refreshCurrentSection() {
 }
 
 // ==================== 初始化 ====================
-Sync.init();
-renderTodos();
-if(Sync.enabled) {
+try { Sync.init(); } catch(e){ console.warn('[init] Sync.init 失败:', e); }
+try { renderTodos(); } catch(e){ console.warn('[init] renderTodos 失败:', e); }
+if(Sync && Sync.enabled) {
   // 智能同步：比较云端更新时间与本地最后修改时间，谁新用谁，避免刷新冲掉本地记录
   (async () => {
     try {
-      const meta = await Sync.fetchMeta();
+      let meta = null;
+      try { meta = await Sync.fetchMeta(); } catch(e){ console.warn('[云同步] 读取云端时间失败:', e); }
       if(!meta) {
-        // 云端无数据 -> 上传本地
-        await Sync.push();
+        try { await Sync.push(); } catch(e){ console.warn('[云同步] 推送失败:', e); }
       } else if(meta.updated_at && Sync.localTs && new Date(meta.updated_at).getTime() > Sync.localTs) {
-        // 云端更新 -> 拉取（合并式，不会清掉本地独有内容）
-        await Sync.pull();
+        try { await Sync.pull(); } catch(e){ console.warn('[云同步] 拉取失败:', e); }
       } else {
-        // 本地更新或时间相同 -> 上传本地，保证云端是最新的
-        await Sync.push();
+        try { await Sync.push(); } catch(e){ console.warn('[云同步] 推送失败:', e); }
       }
-      refreshCurrentSection();
+      try { refreshCurrentSection(); } catch(e){ console.warn('[init] refresh 失败:', e); }
     } catch(e) {
-      console.warn('[云同步] 初始化同步失败，仅使用本地数据:', e);
+      console.warn('[云同步] 初始化同步异常，已忽略:', e);
     }
   })();
 }
