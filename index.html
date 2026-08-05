@@ -535,21 +535,31 @@ tr:hover td { background:#faf9f7; }
 </div>
 
 <script>
-// 调试：捕获 JS 错误并显示在页面上（尽量拿到堆栈）
+// 调试：捕获 JS 错误（手机 X5 内核会屏蔽具体信息，只显示 Script error）
+// 默认不显示顶部红条以免干扰用户；URL 加 ?debug=1 时显示。
+// 同时把最近 5 条错误存到 localStorage['pw_errlog']，可粘贴给我诊断。
+var __DBG__ = /[?&]debug=1/.test(location.href);
+function __logErr(tag, msg, line, stack){
+  try {
+    var detail = (msg||'未知错误') + (line?(' (行'+line+')'):'');
+    if(stack) detail += ' | ' + String(stack).split('\n').slice(0,3).join(' / ');
+    console.error('['+tag+']', detail);
+    var arr = JSON.parse(localStorage.getItem('pw_errlog')||'[]');
+    arr.push({t: new Date().toISOString(), tag:tag, msg:msg, line:line, stack:stack||''});
+    while(arr.length>5) arr.shift();
+    localStorage.setItem('pw_errlog', JSON.stringify(arr));
+    if(__DBG__){
+      var el=document.getElementById('error-display');
+      if(el){el.style.display='block';el.textContent='['+tag+'] '+detail;}
+    }
+  } catch(e){}
+}
 window.onerror=function(msg,url,line,col,error){
-  var detail = msg || '未知错误';
-  try { if(error && error.stack) detail += ' | '+String(error.stack).split('\n').slice(0,3).join(' / '); } catch(e){}
-  var el=document.getElementById('error-display');
-  if(el){el.style.display='block';el.textContent='JS错误: '+detail+' (行'+(line||0)+')';}
-  console.error('JS Error:',msg,'at line',line,'col',col, error);
+  __logErr('JS', msg, line, error&&error.stack);
 };
 window.addEventListener('unhandledrejection', function(ev){
-  var r = ev.reason;
-  var msg = (r && r.message) ? r.message : String(r);
-  var stk = (r && r.stack) ? String(r.stack).split('\n').slice(0,2).join(' / ') : '';
-  var el=document.getElementById('error-display');
-  if(el){el.style.display='block';el.textContent='异步错误: '+msg+(stk?' | '+stk:'')+' (行0)';}
-  console.error('UnhandledRejection:', r);
+  var r=ev.reason, msg=(r&&r.message)?r.message:String(r), stk=(r&&r.stack)?r.stack:'';
+  __logErr('Promise', msg, 0, stk);
 });
 console.log('[DEBUG] Script started');
 // ==================== 工具函数 ====================
