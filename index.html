@@ -1509,23 +1509,33 @@ function refreshCurrentSection() {
 // ==================== 初始化 ====================
 try { Sync.init(); } catch(e){ console.warn('[init] Sync.init 失败:', e); }
 try { renderTodos(); } catch(e){ console.warn('[init] renderTodos 失败:', e); }
+let lastKnownCloudTs = 0;
 if(Sync && Sync.enabled) {
-  // 智能同步：比较云端更新时间与本地最后修改时间，谁新用谁，避免刷新冲掉本地记录
+  // 稳健同步：先拉取云端并合并到本地（保留本地独有记录），再把合并后的完整数据上传，
+  // 保证无论哪台设备最后操作，云端始终是两端数据的并集，避免切换设备时互相覆盖。
   (async () => {
     try {
-      let meta = null;
-      try { meta = await Sync.fetchMeta(); } catch(e){ console.warn('[云同步] 读取云端时间失败:', e); }
-      if(!meta) {
-        try { await Sync.push(); } catch(e){ console.warn('[云同步] 推送失败:', e); }
-      } else if(meta.updated_at && Sync.localTs && new Date(meta.updated_at).getTime() > Sync.localTs) {
-        try { await Sync.pull(); } catch(e){ console.warn('[云同步] 拉取失败:', e); }
-      } else {
-        try { await Sync.push(); } catch(e){ console.warn('[云同步] 推送失败:', e); }
-      }
+      await Sync.pull();   // 合并云端到本地
+      await Sync.push();   // 上传合并后的完整数据（云端=并集）
+      lastKnownCloudTs = Date.now();
       try { refreshCurrentSection(); } catch(e){ console.warn('[init] refresh 失败:', e); }
     } catch(e) {
       console.warn('[云同步] 初始化同步异常，已忽略:', e);
     }
+    // 后台定时轮询：当云端被另一台设备更新时，自动合并并刷新当前页面，无需重新打开
+    setInterval(async () => {
+      try {
+        const meta = await Sync.fetchMeta();
+        if(meta && meta.updated_at) {
+          const t = new Date(meta.updated_at).getTime();
+          if(t > lastKnownCloudTs) {
+            await Sync.pull();
+            lastKnownCloudTs = t;
+            refreshCurrentSection();
+          }
+        }
+      } catch(e){ /* 忽略临时网络错误，下次轮询再试 */ }
+    }, 60000);
   })();
 }
 </script>
