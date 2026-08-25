@@ -310,11 +310,11 @@ tr:hover td { background:#faf9f7; }
 <div class="app">
 
   <div class="bottom-nav">
-    <div class="nav-item active" data-section="plan">
-      <span class="nav-icon">✅</span><span class="nav-label">计划</span>
-    </div>
-    <div class="nav-item" data-section="checkin">
+    <div class="nav-item active" data-section="checkin">
       <span class="nav-icon">💊</span><span class="nav-label">打卡</span>
+    </div>
+    <div class="nav-item" data-section="plan">
+      <span class="nav-icon">✅</span><span class="nav-label">计划</span>
     </div>
     <div class="nav-item" data-section="diary">
       <span class="nav-icon">📝</span><span class="nav-label">日记</span>
@@ -336,7 +336,7 @@ tr:hover td { background:#faf9f7; }
         <button class="avatar-btn" onclick="toggleSidebar()" title="菜单">
           <img class="topbar-logo" src="panda_avatar.png" alt="Penny">
         </button>
-        <span class="topbar-title" id="pageTitle">每日计划</span>
+        <span class="topbar-title" id="pageTitle">吃药打卡</span>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <span class="topbar-date" id="topDate"></span>
@@ -356,11 +356,11 @@ tr:hover td { background:#faf9f7; }
         <span class="sidebar-name">Penny</span>
       </div>
       <div class="sidebar-menu">
+        <div class="sidebar-item active" data-section="checkin" >
+          <span class="s-icon">💊</span><span class="s-label">吃药打卡</span>
+        </div>
         <div class="sidebar-item" data-section="plan" >
           <span class="s-icon">✅</span><span class="s-label">每日计划</span>
-        </div>
-        <div class="sidebar-item" data-section="checkin" >
-          <span class="s-icon">💊</span><span class="s-label">吃药打卡</span>
         </div>
         <div class="sidebar-item" data-section="diary" >
           <span class="s-icon">📝</span><span class="s-label">日记</span>
@@ -387,7 +387,7 @@ tr:hover td { background:#faf9f7; }
     <div class="content">
 
       <!-- 1. 每日计划 -->
-      <div class="section active" id="section-plan">
+      <div class="section" id="section-plan">
         <div class="cal-toggle" onclick="toggleCalendar('planCalWrap')">
           <span class="cal-toggle-icon">📅</span> 查看日历 <span class="cal-toggle-arrow" id="planCalArrow">▾</span>
         </div>
@@ -412,7 +412,7 @@ tr:hover td { background:#faf9f7; }
       </div>
 
       <!-- 2. 吃药打卡 -->
-      <div class="section" id="section-checkin">
+      <div class="section active" id="section-checkin">
         <div class="cal-toggle" onclick="toggleCalendar('checkinCalWrap')">
           <span class="cal-toggle-icon">📅</span> 查看日历 <span class="cal-toggle-arrow" id="checkinCalArrow">▾</span>
         </div>
