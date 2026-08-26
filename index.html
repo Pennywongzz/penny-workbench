@@ -1492,7 +1492,7 @@ function saveAllData() {
   syncPush();
 }
 function refreshCurrentSection() {
-  const activeSection = document.querySelector('.section.active')?.id || 'section-plan';
+  const activeSection = document.querySelector('.section.active')?.id || 'section-checkin';
   const sec = activeSection.replace('section-','');
   const refreshMap = {
     'plan': renderTodos,
@@ -1508,7 +1508,9 @@ function refreshCurrentSection() {
 
 // ==================== 初始化 ====================
 try { Sync.init(); } catch(e){ console.warn('[init] Sync.init 失败:', e); }
-try { renderTodos(); } catch(e){ console.warn('[init] renderTodos 失败:', e); }
+// 强制默认打开「吃药打卡」页面：即使浏览器/PWA 缓存了旧版 HTML（旧版 plan 是 active），
+// 也会被 JS 立即纠正到 checkin，避免首次打开停在计划页。
+try { switchToSection('checkin'); } catch(e){ console.warn('[init] switchToSection(checkin) 失败:', e); }
 let lastKnownCloudTs = 0;
 if(Sync && Sync.enabled) {
   // 稳健同步：先拉取云端并合并到本地（保留本地独有记录），再把合并后的完整数据上传，
