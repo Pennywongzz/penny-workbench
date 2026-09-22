@@ -256,6 +256,16 @@ tr:hover td { background:#faf9f7; }
 .asset-account .acct-change { font-size:12px; margin-left:8px; }
 .asset-account .acct-time { font-size:11px; color:var(--text-light); }
 
+/* 资金变动记录 */
+.history-row { background:var(--card-bg); border-radius:10px; padding:12px 16px; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.history-row .h-left { display:flex; align-items:center; gap:10px; }
+.history-row .h-icon { font-size:22px; }
+.history-row .h-name { font-weight:600; font-size:14px; }
+.history-row .h-time { font-size:11px; color:var(--text-light); }
+.history-row .h-amount { font-weight:700; font-size:14px; }
+.history-row .h-delta { font-size:12px; margin-top:2px; }
+.h-more { font-size:12px; color:var(--text-light); text-align:center; padding:6px 0; }
+
 .fund-row td { font-size:13px; }
 .profit-positive { color:var(--success); font-weight:600; }
 .profit-negative { color:var(--danger); font-weight:600; }
@@ -495,6 +505,13 @@ tr:hover td { background:#faf9f7; }
         <div class="stat-grid" id="financeStats"></div>
         <div class="card">
           <div class="card-title">
+            <span>📊 资金变动记录</span>
+            <span style="font-size:12px;color:var(--text-light);font-weight:400;" id="financeTrendSummary"></span>
+          </div>
+          <div id="financeHistoryList"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
             <span>资产账户</span>
             <button class="btn btn-primary btn-sm" onclick="openAccountModal()">+ 添加账户</button>
           </div>
@@ -579,10 +596,11 @@ function writeAllLocal() {
   DB.set('todos', todoData); DB.set('checkins', checkinData); DB.set('diary', diaryData);
   DB.set('sales', salesData); DB.set('students', studentData); DB.set('accounts', accountData);
   DB.set('funds', fundData); DB.set('copywriting', copyData);
+  DB.set('financeHistory', financeHistory);
   DB.set('_lastchange', Date.now());
 }
 function collectAllData() {
-  return { todoData, checkinData, diaryData, salesData, studentData, accountData, fundData, copyData };
+  return { todoData, checkinData, diaryData, salesData, studentData, accountData, fundData, copyData, financeHistory };
 }
 // 按 id 合并数组：本地与云端都有的以云端为准，独有的都保留（避免拉取时清掉本地记录）
 function mergeById(localArr, cloudArr) {
@@ -618,6 +636,15 @@ function mergeByDate(localObj, cloudObj) {
   }
   return out;
 }
+// 资金历史按时间戳合并（追加式，去重后保留并集，按时间排序）
+function mergeFinanceHistory(localArr, cloudArr) {
+  if(!cloudArr) return localArr;
+  if(!localArr) return cloudArr;
+  const map = new Map();
+  localArr.forEach(x => { if(x && x.ts!=null) map.set(x.ts, x); });
+  cloudArr.forEach(x => { if(x && x.ts!=null) map.set(x.ts, x); });
+  return [...map.values()].sort((a,b)=>a.ts-b.ts);
+}
 // 合并式应用云端数据：保留本地独有内容，云端更新的部分覆盖过来（不再整体覆盖）
 function applyCloudData(cloud) {
   if(!cloud) return;
@@ -629,6 +656,7 @@ function applyCloudData(cloud) {
   if(cloud.accountData!==undefined)  accountData  = mergeById(accountData, cloud.accountData);
   if(cloud.fundData!==undefined)     fundData     = mergeById(fundData, cloud.fundData);
   if(cloud.copyData!==undefined)     copyData     = mergeById(copyData, cloud.copyData);
+  if(cloud.financeHistory!==undefined) financeHistory = mergeFinanceHistory(financeHistory, cloud.financeHistory);
   writeAllLocal();
 }
 const Sync = {
@@ -698,6 +726,7 @@ let diaryData=DB.get('diary',{}), currentDiaryDate=todayStr(), diaryTimer=null;
 let salesData=DB.get('sales',[]);
 let studentData=DB.get('students',[]), studentFilter='all';
 let accountData=DB.get('accounts',[]), fundData=DB.get('funds',[]);
+let financeHistory=DB.get('financeHistory',[]);  // 资金变动历史（追加式，用于看总资金涨跌）
 let copyData=DB.get('copywriting',[]);
 
 // ==================== 导航 ====================
@@ -1266,6 +1295,24 @@ function renderStudents(){
 // ==================== 6. 资金规划 ====================
 function saveAccounts(){DB.set('accounts',accountData);syncPush();}
 function saveFunds(){DB.set('funds',fundData);syncPush();}
+// 记录一笔资金变动到历史（追加式），并保存当时的总资产快照，用于看总资金涨跌
+function recordFinanceEvent(type, name, prev, now){
+  const accTotalNow = accountData.reduce((s,a)=>s+a.amount,0);
+  const fundCurNow = fundData.reduce((s,f)=>s+f.current,0);
+  financeHistory.push({
+    ts: Date.now(),
+    date: todayStr(),
+    time: new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),
+    type, name,
+    prev: Math.round(prev*100)/100,
+    now: Math.round(now*100)/100,
+    delta: Math.round((now-prev)*100)/100,
+    totalAssets: Math.round((accTotalNow+fundCurNow)*100)/100
+  });
+  if(financeHistory.length>300) financeHistory = financeHistory.slice(-300);
+  DB.set('financeHistory', financeHistory);
+  syncPush();
+}
 const accountIcons={'银行卡':'🏦','微信':'💚','支付宝':'💙','黄金':'🥇','基金':'📈','定期':'🔒','现金':'💵','其他':'💳'};
 
 function openAccountModal(){
@@ -1287,7 +1334,7 @@ function submitAccount(){
     prevAmount:null,prevUpdated:null,updatedAt:todayStr(),
     notes:document.getElementById('acctNotes').value.trim()
   });
-  saveAccounts();closeModal();renderFinance();
+  saveAccounts();recordFinanceEvent('账户', name, 0, amount);closeModal();renderFinance();
 }
 function updateAccountAmount(id){
   const a=accountData.find(x=>x.id===id);if(!a)return;
@@ -1295,7 +1342,7 @@ function updateAccountAmount(id){
   if(val!==null){
     const newAmt=parseFloat(val)||0;
     a.prevAmount=a.amount;a.prevUpdated=a.updatedAt;a.amount=newAmt;a.updatedAt=todayStr();
-    saveAccounts();renderFinance();
+    saveAccounts();recordFinanceEvent('账户', a.name, a.prevAmount, newAmt);renderFinance();
   }
 }
 function deleteAccount(id){if(!confirm('确定删除该账户？'))return;accountData=accountData.filter(a=>a.id!==id);saveAccounts();renderFinance();}
@@ -1318,7 +1365,7 @@ function submitFund(){
   const cost=parseFloat(document.getElementById('fundCost').value)||0;
   const current=parseFloat(document.getElementById('fundCurrent').value)||0;
   fundData.push({id:uid(),name,code:document.getElementById('fundCode').value.trim(),cost,current,prevCurrent:null,updatedAt:todayStr()});
-  saveFunds();closeModal();renderFinance();
+  saveFunds();recordFinanceEvent('基金', name, 0, current);closeModal();renderFinance();
 }
 function updateFundValue(id){
   const f=fundData.find(x=>x.id===id);if(!f)return;
@@ -1326,7 +1373,7 @@ function updateFundValue(id){
   if(val!==null){
     const newVal=parseFloat(val)||0;
     f.prevCurrent=f.current;f.current=newVal;f.updatedAt=todayStr();
-    saveFunds();renderFinance();
+    saveFunds();recordFinanceEvent('基金', f.name, f.prevCurrent, newVal);renderFinance();
   }
 }
 function deleteFund(id){if(!confirm('确定删除该基金？'))return;fundData=fundData.filter(f=>f.id!==id);saveFunds();renderFinance();}
@@ -1399,6 +1446,45 @@ function renderFinance(){
         💡 点击「更新市值」输入新市值，系统自动记录变化；点击「删除」移除该基金
       </div>`;
   }
+  renderFinanceHistory();
+}
+
+function renderFinanceHistory(){
+  // 顶部涨跌小结：用历史中记录的总资产快照看期起初值 → 最新值
+  const trendEl = document.getElementById('financeTrendSummary');
+  if(financeHistory.length===0){
+    trendEl.textContent='';
+  }else{
+    const sorted=[...financeHistory].sort((a,b)=>a.ts-b.ts);
+    const first=sorted[0].totalAssets;
+    const last=sorted[sorted.length-1].totalAssets;
+    const cum=Math.round((last-first)*100)/100;
+    const color=cum>=0?'var(--success)':'var(--danger)';
+    trendEl.innerHTML=`期起初值 ${fmtMoney(first)} → 最新 ${fmtMoney(last)} <b style="color:${color};">${cum>=0?'+':''}${fmtMoney(cum)}</b>`;
+  }
+  const list=document.getElementById('financeHistoryList');
+  if(financeHistory.length===0){
+    list.innerHTML='<div class="empty"><div class="empty-icon">📋</div>还没有变动记录，更新账户/基金金额后自动记录</div>';
+    return;
+  }
+  const items=[...financeHistory].sort((a,b)=>b.ts-a.ts); // 最新在上
+  const SHOW=50;
+  const shown=items.slice(0,SHOW);
+  const more=items.length-SHOW;
+  list.innerHTML=shown.map(h=>`
+    <div class="history-row">
+      <div class="h-left">
+        <span class="h-icon">${h.type==='账户'?'💰':'📈'}</span>
+        <div>
+          <div class="h-name">${h.type}：${h.name}</div>
+          <div class="h-time">${h.date} ${h.time}</div>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div class="h-amount">${fmtMoney(h.prev)} → ${fmtMoney(h.now)}</div>
+        <div class="h-delta" style="color:${h.delta>=0?'var(--success)':'var(--danger)'};">${h.delta>=0?'+':''}${fmtMoney(h.delta)}</div>
+      </div>
+    </div>`).join('') + (more>0?`<div class="h-more">还有 ${more} 条更早记录</div>`:'');
 }
 
 // ==================== 7. 文案备忘 ====================
@@ -1450,7 +1536,8 @@ function exportAllData() {
     exportedAt: new Date().toISOString(),
     todoData, checkinData,
     diaryData, salesData, studentData,
-    accountData, fundData, copyData
+    accountData, fundData, copyData,
+    financeHistory
   };
   const blob = new Blob([JSON.stringify(allData, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -1476,6 +1563,7 @@ function importAllData(e) {
       accountData = allData.accountData || [];
       fundData = allData.fundData || [];
       copyData = allData.copyData || [];
+      financeHistory = allData.financeHistory || [];
       saveAllData();
       refreshCurrentSection();
       alert('数据导入成功！');
@@ -1511,6 +1599,15 @@ try { Sync.init(); } catch(e){ console.warn('[init] Sync.init 失败:', e); }
 // 强制默认打开「吃药打卡」页面：即使浏览器/PWA 缓存了旧版 HTML（旧版 plan 是 active），
 // 也会被 JS 立即纠正到 checkin，避免首次打开停在计划页。
 try { switchToSection('checkin'); } catch(e){ console.warn('[init] switchToSection(checkin) 失败:', e); }
+// 资金历史基线：若还没有任何变动记录，但已有账户/基金，写一条「记账起点」便于立即看到趋势
+try {
+  if(financeHistory.length===0 && (accountData.length>0 || fundData.length>0)){
+    const _acc=accountData.reduce((s,a)=>s+a.amount,0);
+    const _fund=fundData.reduce((s,f)=>s+f.current,0);
+    const _total=_acc+_fund;
+    recordFinanceEvent('基线','记账起点',_total,_total);
+  }
+} catch(e){ console.warn('[init] 资金基线失败:', e); }
 let lastKnownCloudTs = 0;
 if(Sync && Sync.enabled) {
   // 稳健同步：先拉取云端并合并到本地（保留本地独有记录），再把合并后的完整数据上传，
